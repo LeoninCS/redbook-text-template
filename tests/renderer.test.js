@@ -64,6 +64,16 @@ test("homepage uses a compact Chinese product title", () => {
   assert.match(html, /<h1 id="library-title">小红书文字模板库<\/h1>/);
 });
 
+test("homepage chrome keeps copy to a minimum", () => {
+  assert.doesNotMatch(html, /subcopy/);
+  assert.doesNotMatch(html, /hero-stats/);
+  assert.doesNotMatch(html, /Redbook Text Template<\/p>/);
+  assert.doesNotMatch(html, />Drafts</);
+  assert.doesNotMatch(html, />Categories</);
+  assert.doesNotMatch(styles, /\.template-card-copy p\s*{/);
+  assert.doesNotMatch(styles, /\.template-category\s*{/);
+});
+
 test("provides at least thirty-two distinct templates", () => {
   const templates = getTemplates();
   const ids = new Set(templates.map((template) => template.id));
@@ -188,7 +198,7 @@ test("styles include a dedicated mobile layout", () => {
   assert.match(styles, /\.preview-page-shell\s*{\s*width: min\(310px, 100%\);/);
   assert.match(styles, /\.preview-panel\s*{\s*order: -1;/);
   assert.match(styles, /h1\s*{\s*font-size: clamp\(27px, 8vw, 34px\);/);
-  assert.match(styles, /\.hero-stats\s*{\s*display: flex;/);
+  assert.match(styles, /\.template-card\s*{\s*min-height: auto;/);
 });
 
 test("styles include the ink wash paper UI language", () => {
