@@ -1,0 +1,10 @@
+{
+  "name": "redbook-text-template",
+  "version": "0.1.0",
+  "description": "Static Xiaohongshu text template renderer.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "private": true
+}
