@@ -33,6 +33,27 @@ export function buildExportFilename(templateId, pageNumber, extension) {
   return `redbook-template-${templateId}-${pageLabel}.${extension}`;
 }
 
+export function buildExportSummary(input, pageCount, scale = 2, size = OUTPUT_SIZE) {
+  const pages = parsePageRange(input, pageCount);
+  const normalizedScale = Math.max(1, Math.min(3, Number(scale) || 2));
+  const width = size.width * normalizedScale;
+  const height = size.height * normalizedScale;
+  const isValid = pages.length > 0;
+
+  return {
+    pages,
+    pageCount,
+    selectedCount: pages.length,
+    scale: normalizedScale,
+    width,
+    height,
+    isValid,
+    message: isValid
+      ? `将导出 ${pages.length} / ${pageCount} 页，${normalizedScale}x，${width} x ${height} px。`
+      : "页码范围为空，请输入如 1-3,5。",
+  };
+}
+
 function crc32(bytes) {
   let crc = -1;
   for (const byte of bytes) {
