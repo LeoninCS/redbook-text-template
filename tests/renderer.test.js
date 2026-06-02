@@ -57,7 +57,12 @@ function createDrawingContext() {
   };
 }
 
+const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+
+test("homepage uses a compact Chinese product title", () => {
+  assert.match(html, /<h1 id="library-title">小红书文字模板库<\/h1>/);
+});
 
 test("provides at least thirty-two distinct templates", () => {
   const templates = getTemplates();
@@ -182,6 +187,19 @@ test("styles include a dedicated mobile layout", () => {
   assert.match(styles, /\.category-filter\s*{\s*display: flex;/);
   assert.match(styles, /\.preview-page-shell\s*{\s*width: min\(310px, 100%\);/);
   assert.match(styles, /\.preview-panel\s*{\s*order: -1;/);
+  assert.match(styles, /h1\s*{\s*font-size: clamp\(27px, 8vw, 34px\);/);
+  assert.match(styles, /\.hero-stats\s*{\s*display: flex;/);
+});
+
+test("styles include the ink wash paper UI language", () => {
+  assert.match(styles, /--paper:\s*#f7f0df;/);
+  assert.match(styles, /--mist-pink:\s*#d96488;/);
+  assert.match(styles, /--seal-red:\s*#9f3f36;/);
+  assert.match(styles, /body::before\s*{/);
+  assert.match(styles, /body::after\s*{/);
+  assert.match(styles, /\.site-nav::after\s*{/);
+  assert.match(styles, /\.hero::before\s*{/);
+  assert.match(styles, /\.template-grid\s*{[\s\S]*linear-gradient\(180deg, rgba\(247, 240, 223, 0.86\), rgba\(239, 183, 199, 0.22\)\)/);
 });
 
 test("paginates long markdown drafts into bounded render pages", () => {
