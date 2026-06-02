@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   CATEGORY_ALL,
   CATEGORY_FAVORITES,
+  CATEGORY_WORKS,
   getLibraryCategories,
   getRecentDrafts,
   getRecentWorks,
@@ -18,11 +19,12 @@ const templates = [
 ];
 
 test("builds library categories with favorites", () => {
-  const categories = getLibraryCategories(templates, ["daily-note", "cyber-neon"]);
+  const categories = getLibraryCategories(templates, ["daily-note", "cyber-neon"], 3);
 
   assert.deepEqual(categories, [
     { name: CATEGORY_ALL, count: 4 },
     { name: CATEGORY_FAVORITES, count: 2 },
+    { name: CATEGORY_WORKS, count: 3 },
     { name: "专业", count: 2 },
     { name: "炫酷", count: 1 },
     { name: "手帐", count: 1 },

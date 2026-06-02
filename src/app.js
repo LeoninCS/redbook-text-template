@@ -30,6 +30,7 @@ import {
 import {
   CATEGORY_ALL,
   CATEGORY_FAVORITES,
+  CATEGORY_WORKS,
   getLibraryCategories,
   getRecentDrafts,
   getRecentWorks,
@@ -60,7 +61,6 @@ const editorView = document.querySelector("#editorView");
 const templateGrid = document.querySelector("#templateGrid");
 const categoryFilter = document.querySelector("#categoryFilter");
 const draftsStrip = document.querySelector("#draftsStrip");
-const worksGrid = document.querySelector("#worksGrid");
 const templateSelect = document.querySelector("#templateSelect");
 const titleInput = document.querySelector("#titleInput");
 const bodyInput = document.querySelector("#bodyInput");
@@ -175,7 +175,11 @@ function renderWorkThumbnail(work) {
 
 function renderCategories() {
   categoryFilter.innerHTML = "";
-  const categories = getLibraryCategories(templates, projectState.favoriteTemplateIds);
+  const categories = getLibraryCategories(
+    templates,
+    projectState.favoriteTemplateIds,
+    (projectState.works || []).length,
+  );
   categories.forEach(({ name }) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -192,6 +196,11 @@ function renderCategories() {
 
 function renderLibrary() {
   templateGrid.innerHTML = "";
+  templateGrid.classList.toggle("works-grid-mode", selectedCategory === CATEGORY_WORKS);
+  if (selectedCategory === CATEGORY_WORKS) {
+    renderWorksLibrary();
+    return;
+  }
   const visibleTemplates = getVisibleTemplates(templates, selectedCategory, projectState.favoriteTemplateIds);
   if (!visibleTemplates.length) {
     const empty = document.createElement("p");
@@ -248,11 +257,24 @@ function renderDrafts() {
   });
 }
 
-function renderWorks() {
+function renderWorksLibrary() {
   const works = getRecentWorks(projectState, 8);
-  const section = worksGrid.closest(".works-section");
-  worksGrid.innerHTML = "";
-  if (section) section.hidden = works.length === 0;
+  if (!works.length) {
+    const empty = document.createElement("div");
+    empty.className = "works-empty";
+    const title = document.createElement("strong");
+    title.textContent = "还没有保存的作品";
+    const text = document.createElement("span");
+    text.textContent = "编辑模板后点保存作品，会出现在这里。";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary-button small-button";
+    button.textContent = "新建作品";
+    button.addEventListener("click", () => createDraft());
+    empty.append(title, text, button);
+    templateGrid.append(empty);
+    return;
+  }
 
   works.forEach((work) => {
     const card = document.createElement("article");
@@ -281,7 +303,7 @@ function renderWorks() {
     deleteButton.addEventListener("click", () => deleteSavedWork(work.id));
 
     card.append(openButton, deleteButton);
-    worksGrid.append(card);
+    templateGrid.append(card);
   });
 }
 
@@ -426,7 +448,6 @@ function openLibrary() {
   renderCategories();
   renderLibrary();
   renderDrafts();
-  renderWorks();
   editorView.hidden = true;
   libraryView.hidden = false;
 }
@@ -468,7 +489,9 @@ function saveCurrentWork() {
   persistActiveDraft();
   projectState = saveWork(projectState, selectedTemplateId, draft);
   saveProjectState(localStorage, projectState);
-  renderWorks();
+  selectedCategory = CATEGORY_WORKS;
+  renderCategories();
+  renderLibrary();
   statusText.textContent = "作品已保存。";
 }
 
@@ -478,7 +501,8 @@ function deleteSavedWork(workId) {
   if (!confirmed) return;
   projectState = deleteWork(projectState, workId);
   saveProjectState(localStorage, projectState);
-  renderWorks();
+  renderCategories();
+  renderLibrary();
   statusText.textContent = "作品已删除。";
 }
 
@@ -706,7 +730,6 @@ renderTemplateSelect();
 renderCategories();
 renderLibrary();
 renderDrafts();
-renderWorks();
 setInputs();
 renderPreview();
 openLibrary();

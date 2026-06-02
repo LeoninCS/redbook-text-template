@@ -23,7 +23,9 @@ function createMeasureContext() {
 }
 
 function createDrawingContext() {
+  const textCalls = [];
   return {
+    textCalls,
     font: "",
     globalAlpha: 1,
     lineWidth: 1,
@@ -50,7 +52,9 @@ function createDrawingContext() {
     restore() {},
     translate() {},
     rotate() {},
-    fillText() {},
+    fillText(text, x, y) {
+      textCalls.push({ text, x, y, font: this.font });
+    },
     measureText(text) {
       return { width: String(text).length * 20 };
     },
@@ -112,19 +116,25 @@ test("template thumbnails render from the same canvas path as export output", ()
   assert.doesNotMatch(styles, /\.template-thumb\[data-scene=/);
 });
 
-test("homepage and editor include a local works library", () => {
-  assert.match(html, /<section class="works-section" aria-labelledby="works-title">/);
-  assert.match(html, /<h2 id="works-title">作品库<\/h2>/);
-  assert.match(html, /<div class="works-grid" id="worksGrid" aria-label="作品库"><\/div>/);
+test("homepage shows works library as a category tab", () => {
+  assert.doesNotMatch(html, /<section class="works-section"/);
+  assert.doesNotMatch(html, /id="worksGrid"/);
   assert.match(html, /<button class="secondary-button small-button" id="saveWorkBtn" type="button">保存作品<\/button>/);
-  assert.match(appSource, /const worksGrid = document\.querySelector\("#worksGrid"\);/);
-  assert.match(appSource, /function renderWorks\(\)/);
+  assert.match(appSource, /CATEGORY_WORKS/);
+  assert.match(appSource, /selectedCategory === CATEGORY_WORKS/);
+  assert.match(appSource, /function renderWorksLibrary\(\)/);
   assert.match(appSource, /function saveCurrentWork\(\)/);
   assert.match(appSource, /function openWork\(workId\)/);
   assert.match(appSource, /function deleteSavedWork\(workId\)/);
-  assert.match(styles, /\.works-section\s*{/);
-  assert.match(styles, /\.works-grid\s*{/);
+  assert.match(styles, /\.works-empty\s*{/);
   assert.match(styles, /\.work-card\s*{/);
+});
+
+test("editor draft actions keep Chinese labels on one line", () => {
+  assert.match(html, /<div class="draft-action-bar" aria-label="草稿操作">/);
+  assert.match(styles, /\.draft-action-bar\s*{[\s\S]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(76px,\s*max-content\)\);/);
+  assert.match(styles, /\.draft-action-bar \.small-button\s*{[\s\S]*white-space:\s*nowrap;/);
+  assert.match(styles, /\.draft-action-bar \.small-button\s*{[\s\S]*width:\s*max-content;/);
 });
 
 test("homepage uses a redbook style waterfall feed", () => {
@@ -416,6 +426,35 @@ test("draws a paginated page without runtime errors", () => {
       signature: "布洛克琴",
     }));
   });
+});
+
+test("draws render kicker with separated words and clear title spacing", () => {
+  const measureCtx = createMeasureContext();
+  const drawCtx = createDrawingContext();
+  const paginated = paginateRenderModel(measureCtx, buildRenderModel("daily-note", {
+    title: "把普通文字排得更好看",
+    body: "正文",
+    signature: "作者",
+    controls: {
+      fontScale: 1.28,
+    },
+  }));
+
+  drawRenderModel(drawCtx, paginated);
+
+  const rednote = drawCtx.textCalls.find((call) => call.text === "REDNOTE");
+  const text = drawCtx.textCalls.find((call) => call.text === "TEXT");
+  const title = drawCtx.textCalls.find((call) => call.text === paginated.pages[0].titleLines[0]);
+
+  assert.equal(drawCtx.textCalls.some((call) => call.text === "REDNOTE TEXT"), false);
+  assert.ok(rednote);
+  assert.ok(text);
+  assert.ok(title);
+  const kickerFontSize = Number(rednote.font.match(/(\d+)px/)?.[1] || 0);
+
+  assert.equal(text.y, rednote.y);
+  assert.ok(text.x - (rednote.x + "REDNOTE".length * 20) >= 18);
+  assert.ok(title.y - (rednote.y + kickerFontSize) >= 44);
 });
 
 test("quality fixtures paginate and draw stable pages", () => {

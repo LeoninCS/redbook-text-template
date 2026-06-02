@@ -720,7 +720,8 @@ export function buildRenderModel(templateId, draft = {}) {
 }
 
 const KICKER_Y = 118;
-const TITLE_Y = 176;
+const TITLE_Y = 196;
+const KICKER_WORD_GAP = 36;
 const SIGNATURE_Y = OUTPUT_SIZE.height - 150;
 const BODY_BOTTOM_Y = OUTPUT_SIZE.height - 190;
 const CONTINUATION_BODY_Y = 176;
@@ -1803,6 +1804,21 @@ function drawMarkdownItems(ctx, model, page, x) {
   }
 }
 
+function drawKicker(ctx, x, y, align) {
+  const leftWord = "REDNOTE";
+  const rightWord = "TEXT";
+  const leftWidth = ctx.measureText(leftWord).width;
+  const rightWidth = ctx.measureText(rightWord).width;
+  const totalWidth = leftWidth + KICKER_WORD_GAP + rightWidth;
+  const startX = align === "center" ? x - totalWidth / 2 : x;
+  const originalAlign = ctx.textAlign;
+
+  ctx.textAlign = "left";
+  ctx.fillText(leftWord, startX, y);
+  ctx.fillText(rightWord, startX + leftWidth + KICKER_WORD_GAP, y);
+  ctx.textAlign = originalAlign;
+}
+
 export function drawRenderPage(ctx, paginatedModel, page = paginatedModel.pages[0]) {
   const { template, draft, size, padding } = paginatedModel;
 
@@ -1823,7 +1839,7 @@ export function drawRenderPage(ctx, paginatedModel, page = paginatedModel.pages[
 
   ctx.fillStyle = template.accent;
   ctx.font = "700 28px system-ui, sans-serif";
-  ctx.fillText("REDNOTE TEXT", x, KICKER_Y);
+  drawKicker(ctx, x, KICKER_Y, template.align);
 
   if (page.titleLines.length) {
     ctx.fillStyle = template.text;
