@@ -45,6 +45,7 @@ const defaultDraft = {
     accent: "",
     surfaceAlpha: 1,
     align: "",
+    toneMode: "auto",
   },
 };
 
@@ -78,6 +79,7 @@ const paddingScaleInput = document.querySelector("#paddingScaleInput");
 const surfaceAlphaInput = document.querySelector("#surfaceAlphaInput");
 const accentColorInput = document.querySelector("#accentColorInput");
 const alignSelect = document.querySelector("#alignSelect");
+const toneModeSelect = document.querySelector("#toneModeSelect");
 const aiSuggestBtn = document.querySelector("#aiSuggestBtn");
 const aiOutput = document.querySelector("#aiOutput");
 
@@ -257,6 +259,7 @@ function setInputs() {
   surfaceAlphaInput.value = normalized.controls.surfaceAlpha ?? 1;
   accentColorInput.value = normalized.controls.accent || template.accent;
   alignSelect.value = normalized.controls.align || template.align;
+  toneModeSelect.value = normalized.controls.toneMode || "auto";
 }
 
 function updateDraftFromInputs() {
@@ -271,6 +274,7 @@ function updateDraftFromInputs() {
       accent: accentColorInput.value,
       surfaceAlpha: Number(surfaceAlphaInput.value),
       align: alignSelect.value,
+      toneMode: toneModeSelect.value,
     },
   };
 }
@@ -652,6 +656,7 @@ function bindEvents() {
     surfaceAlphaInput,
     accentColorInput,
     alignSelect,
+    toneModeSelect,
   ].forEach((input) => {
     input.addEventListener("input", () => {
       updateDraftFromInputs();
