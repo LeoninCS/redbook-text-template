@@ -16,11 +16,14 @@ import { buildAiSuggestions } from "./assistant.js";
 import {
   createNewDraft,
   deleteDraft,
+  deleteWork,
   duplicateDraft,
   getActiveDraft,
+  loadWorkAsDraft,
   loadProjectState,
   renameDraft,
   saveProjectState,
+  saveWork,
   toggleFavoriteTemplate,
   updateActiveDraft,
 } from "./project-store.js";
@@ -29,6 +32,7 @@ import {
   CATEGORY_FAVORITES,
   getLibraryCategories,
   getRecentDrafts,
+  getRecentWorks,
   getVisibleTemplates,
 } from "./project-view.js";
 
@@ -56,6 +60,7 @@ const editorView = document.querySelector("#editorView");
 const templateGrid = document.querySelector("#templateGrid");
 const categoryFilter = document.querySelector("#categoryFilter");
 const draftsStrip = document.querySelector("#draftsStrip");
+const worksGrid = document.querySelector("#worksGrid");
 const templateSelect = document.querySelector("#templateSelect");
 const titleInput = document.querySelector("#titleInput");
 const bodyInput = document.querySelector("#bodyInput");
@@ -66,6 +71,7 @@ const newDraftFromLibraryBtn = document.querySelector("#newDraftFromLibraryBtn")
 const newDraftBtn = document.querySelector("#newDraftBtn");
 const duplicateDraftBtn = document.querySelector("#duplicateDraftBtn");
 const renameDraftBtn = document.querySelector("#renameDraftBtn");
+const saveWorkBtn = document.querySelector("#saveWorkBtn");
 const deleteDraftBtn = document.querySelector("#deleteDraftBtn");
 const exportPngBtn = document.querySelector("#exportPngBtn");
 const exportPdfBtn = document.querySelector("#exportPdfBtn");
@@ -115,38 +121,38 @@ function getTemplate(templateId = selectedTemplateId) {
   return templates.find((template) => template.id === templateId) || templates[0];
 }
 
-function getInkScene(template, index = 0) {
-  const scenes = ["figure", "landscape", "tea", "tree", "house", "corridor"];
-  const seed = index + [...template.category].reduce((total, char) => total + char.charCodeAt(0), 0);
-  return scenes[seed % scenes.length];
+function renderCanvasThumbnail(paginated, page = paginated.pages[0]) {
+  const canvas = createCanvasForPage(paginated, page, 1);
+  canvas.className = "template-thumb-canvas";
+  canvas.setAttribute("aria-hidden", "true");
+  return canvas;
 }
 
-function getFlowSize(template) {
-  const sizes = ["short", "medium", "tall"];
-  const seed = [...template.decoration.kind].reduce((total, char) => total + char.charCodeAt(0), 0);
-  return sizes[seed % sizes.length];
-}
-
-function renderTemplateThumbnail(template, index = 0) {
+function renderTemplateThumbnail(template) {
   const print = document.createElement("div");
   print.className = "template-print";
 
+  const thumbnailDraft = {
+    title: template.name,
+    body: `## ${template.category}模板\n- 文字层次清晰\n- 手机阅读舒服\n\n> ${template.description}`,
+    signature: "布洛克琴",
+    controls: {
+      fontScale: 0.92,
+      lineHeightScale: 0.96,
+      paddingScale: 0.9,
+      accent: "",
+      surfaceAlpha: 1,
+      align: "",
+      toneMode: "auto",
+    },
+  };
+  const measureCanvas = document.createElement("canvas");
+  const thumbnailModel = buildRenderModel(template.id, thumbnailDraft);
+  const thumbnailPage = paginateRenderModel(measureCanvas.getContext("2d"), thumbnailModel);
+
   const thumb = document.createElement("div");
   thumb.className = "template-thumb";
-  thumb.dataset.template = template.decoration.kind;
-  thumb.dataset.scene = getInkScene(template, index);
-  thumb.dataset.size = getFlowSize(template);
-  thumb.style.setProperty("--template-bg", template.bg);
-  thumb.style.setProperty("--template-surface", template.surface);
-  thumb.style.setProperty("--template-text", template.text);
-  thumb.style.setProperty("--template-accent", template.accent);
-  thumb.innerHTML = `
-    <span></span>
-    <i class="ink-motif ink-motif-figure"></i>
-    <i class="ink-motif ink-motif-landscape"></i>
-    <i class="ink-motif ink-motif-botanical"></i>
-    <i class="ink-motif ink-motif-tea"></i>
-  `;
+  thumb.append(renderCanvasThumbnail(thumbnailPage));
 
   const title = document.createElement("strong");
   title.className = "template-title";
@@ -154,6 +160,17 @@ function renderTemplateThumbnail(template, index = 0) {
 
   print.append(thumb, title);
   return print;
+}
+
+function renderWorkThumbnail(work) {
+  const measureCanvas = document.createElement("canvas");
+  const workModel = buildRenderModel(work.templateId, work.draft);
+  const workPage = paginateRenderModel(measureCanvas.getContext("2d"), workModel);
+
+  const thumb = document.createElement("div");
+  thumb.className = "template-thumb work-thumb";
+  thumb.append(renderCanvasThumbnail(workPage));
+  return thumb;
 }
 
 function renderCategories() {
@@ -183,12 +200,12 @@ function renderLibrary() {
     templateGrid.append(empty);
     return;
   }
-  visibleTemplates.forEach((template, index) => {
+  visibleTemplates.forEach((template) => {
     const card = document.createElement("article");
     card.className = "template-card";
     card.dataset.templateId = template.id;
     card.tabIndex = 0;
-    card.append(renderTemplateThumbnail(template, index));
+    card.append(renderTemplateThumbnail(template));
 
     const favoriteBtn = document.createElement("button");
     favoriteBtn.type = "button";
@@ -228,6 +245,43 @@ function renderDrafts() {
     card.append(draftName);
     card.addEventListener("click", () => openDraft(draftRecord.id));
     draftsStrip.append(card);
+  });
+}
+
+function renderWorks() {
+  const works = getRecentWorks(projectState, 8);
+  const section = worksGrid.closest(".works-section");
+  worksGrid.innerHTML = "";
+  if (section) section.hidden = works.length === 0;
+
+  works.forEach((work) => {
+    const card = document.createElement("article");
+    card.className = "work-card";
+
+    const openButton = document.createElement("button");
+    openButton.type = "button";
+    openButton.className = "work-open-button";
+    openButton.append(renderWorkThumbnail(work));
+    openButton.addEventListener("click", () => openWork(work.id));
+
+    const meta = document.createElement("div");
+    meta.className = "work-meta";
+    const name = document.createElement("strong");
+    name.textContent = work.name;
+    const templateName = document.createElement("span");
+    templateName.textContent = getTemplate(work.templateId).name;
+    meta.append(name, templateName);
+    openButton.append(meta);
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.className = "work-delete-button";
+    deleteButton.setAttribute("aria-label", `删除作品 ${work.name}`);
+    deleteButton.textContent = "×";
+    deleteButton.addEventListener("click", () => deleteSavedWork(work.id));
+
+    card.append(openButton, deleteButton);
+    worksGrid.append(card);
   });
 }
 
@@ -274,52 +328,11 @@ function updateDraftFromInputs() {
   };
 }
 
-function applyPreviewTheme(phoneScreen, previewCard, paginated) {
-  const { template } = paginated;
-  phoneScreen.style.setProperty("--preview-bg", template.bg);
-  previewCard.style.setProperty("--preview-surface", template.surface);
-  previewCard.style.setProperty("--preview-text", template.text);
-  previewCard.style.setProperty("--preview-muted", template.muted);
-  previewCard.style.setProperty("--preview-accent", template.accent);
-  previewCard.style.setProperty("--preview-surface-alpha", paginated.surfaceAlpha ?? 1);
-  previewCard.dataset.template = template.decoration.kind;
-  previewCard.dataset.align = template.align;
-}
-
-function renderInlineMarkdown(parent, segments) {
-  segments.forEach((segment) => {
-    const node = document.createElement(
-      segment.type === "strong" ? "strong" : segment.type === "em" ? "em" : segment.type === "code" ? "code" : "span",
-    );
-    node.textContent = segment.text;
-    parent.append(node);
-  });
-}
-
-function renderPreviewLine(parent, item) {
-  if (item.blockType === "list") {
-    const row = document.createElement("p");
-    row.className = "preview-list-line";
-    if (item.bullet) {
-      const bullet = document.createElement("span");
-      bullet.className = "preview-bullet";
-      bullet.textContent = "•";
-      row.append(bullet);
-    } else {
-      row.append(document.createElement("span"));
-    }
-    const text = document.createElement("span");
-    renderInlineMarkdown(text, item.segments);
-    row.append(text);
-    parent.append(row);
-    return;
-  }
-
-  const tagName = item.blockType === "heading" ? "h4" : "p";
-  const node = document.createElement(tagName);
-  if (item.quote) node.className = "preview-quote-line";
-  renderInlineMarkdown(node, item.segments);
-  parent.append(node);
+function renderPreviewCanvas(paginated, page) {
+  const canvas = createCanvasForPage(paginated, page, 1);
+  canvas.className = "preview-canvas";
+  canvas.setAttribute("aria-label", `实际输出预览第 ${page.pageNumber} 页`);
+  return canvas;
 }
 
 function renderPreviewPage(paginated, page) {
@@ -340,31 +353,7 @@ function renderPreviewPage(paginated, page) {
   phoneFrame.className = "phone-frame";
   const phoneScreen = document.createElement("div");
   phoneScreen.className = "phone-screen";
-  const previewCard = document.createElement("div");
-  previewCard.className = "preview-card";
-  applyPreviewTheme(phoneScreen, previewCard, paginated);
-
-  const kicker = document.createElement("p");
-  kicker.className = "preview-kicker";
-  kicker.textContent = page.pageNumber === 1 ? "REDNOTE TEXT" : "CONTINUED";
-  const title = document.createElement("h3");
-  title.className = "preview-title";
-  title.textContent = page.titleLines.join("\n");
-  if (!page.titleLines.length) title.hidden = true;
-  const body = document.createElement("div");
-  body.className = "preview-body";
-  page.items.forEach((item) => {
-    if (item.type === "line") renderPreviewLine(body, item);
-  });
-  const signature = document.createElement("p");
-  signature.className = "preview-signature";
-  signature.textContent = `@ ${paginated.draft.signature}`;
-  const pageNumber = document.createElement("p");
-  pageNumber.className = "preview-page-number";
-  pageNumber.textContent = `${page.pageNumber} / ${page.pageCount}`;
-
-  previewCard.append(kicker, title, body, signature, pageNumber);
-  phoneScreen.append(previewCard);
+  phoneScreen.append(renderPreviewCanvas(paginated, page));
   phoneFrame.append(phoneScreen);
   shell.append(label, phoneFrame, spaceHint);
   return shell;
@@ -420,11 +409,24 @@ function openDraft(draftId) {
   renderPreview();
 }
 
+function openWork(workId) {
+  persistActiveDraft();
+  projectState = loadWorkAsDraft(projectState, workId);
+  hydrateActiveDraft();
+  saveProjectState(localStorage, projectState);
+  libraryView.hidden = true;
+  editorView.hidden = false;
+  setInputs();
+  renderPreview();
+  statusText.textContent = "作品已打开为草稿。";
+}
+
 function openLibrary() {
   persistActiveDraft();
   renderCategories();
   renderLibrary();
   renderDrafts();
+  renderWorks();
   editorView.hidden = true;
   libraryView.hidden = false;
 }
@@ -459,6 +461,25 @@ function renameCurrentDraft() {
   saveProjectState(localStorage, projectState);
   renderDrafts();
   statusText.textContent = "作品名称已更新。";
+}
+
+function saveCurrentWork() {
+  updateDraftFromInputs();
+  persistActiveDraft();
+  projectState = saveWork(projectState, selectedTemplateId, draft);
+  saveProjectState(localStorage, projectState);
+  renderWorks();
+  statusText.textContent = "作品已保存。";
+}
+
+function deleteSavedWork(workId) {
+  const work = (projectState.works || []).find((item) => item.id === workId);
+  const confirmed = window.confirm(`删除作品「${work?.name || "未命名作品"}」？`);
+  if (!confirmed) return;
+  projectState = deleteWork(projectState, workId);
+  saveProjectState(localStorage, projectState);
+  renderWorks();
+  statusText.textContent = "作品已删除。";
 }
 
 function deleteCurrentDraft() {
@@ -673,6 +694,7 @@ function bindEvents() {
   newDraftBtn.addEventListener("click", () => createDraft());
   duplicateDraftBtn.addEventListener("click", duplicateCurrentDraft);
   renameDraftBtn.addEventListener("click", renameCurrentDraft);
+  saveWorkBtn.addEventListener("click", saveCurrentWork);
   deleteDraftBtn.addEventListener("click", deleteCurrentDraft);
   exportPngBtn.addEventListener("click", exportPng);
   exportPdfBtn.addEventListener("click", exportPdf);
@@ -684,6 +706,7 @@ renderTemplateSelect();
 renderCategories();
 renderLibrary();
 renderDrafts();
+renderWorks();
 setInputs();
 renderPreview();
 openLibrary();

@@ -34,3 +34,9 @@ export function getRecentDrafts(state, limit = 6) {
     .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
     .slice(0, limit);
 }
+
+export function getRecentWorks(state, limit = 6) {
+  return [...(state?.works || [])]
+    .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime())
+    .slice(0, limit);
+}

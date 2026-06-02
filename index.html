@@ -13,17 +13,18 @@
           <span class="brand-mark">RT</span>
           <span>Redbook Text Template</span>
         </a>
+        <a class="author-link" href="https://github.com/LeoninCS/redbook-text-template" target="_blank" rel="noreferrer" aria-label="布洛克琴 GitHub">
+          <span>布洛克琴</span>
+          <svg class="github-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M12 .5C5.65.5.9 5.25.9 11.7c0 5 3.2 9.25 7.65 10.6.55.1.75-.25.75-.55v-2.1c-3.1.7-3.75-1.35-3.75-1.35-.5-1.3-1.2-1.65-1.2-1.65-1-.7.1-.7.1-.7 1.1.1 1.65 1.15 1.65 1.15 1 .1 1.55 1.45 3.15 1.05.1-.7.4-1.2.7-1.5-2.5-.3-5.1-1.25-5.1-5.55 0-1.25.45-2.25 1.15-3.05-.1-.3-.5-1.55.1-3.15 0 0 .95-.3 3.1 1.15.9-.25 1.85-.4 2.8-.4s1.9.15 2.8.4c2.15-1.45 3.1-1.15 3.1-1.15.6 1.6.2 2.85.1 3.15.7.8 1.15 1.8 1.15 3.05 0 4.3-2.6 5.25-5.1 5.55.4.35.75 1.05.75 2.1v3.1c0 .3.2.65.75.55 4.45-1.5 7.65-5.7 7.65-10.75C23.1 5.25 18.35.5 12 .5Z" />
+          </svg>
+        </a>
       </nav>
 
       <section class="library-view" id="libraryView" aria-labelledby="library-title">
         <header class="hero">
           <div>
             <h1 id="library-title">小红书文字模板库</h1>
-          </div>
-          <div class="hero-art" aria-hidden="true">
-            <span class="ink-panel ink-panel-figure"></span>
-            <span class="ink-panel ink-panel-landscape"></span>
-            <span class="ink-panel ink-panel-tea"></span>
           </div>
         </header>
 
@@ -35,6 +36,15 @@
             <button class="secondary-button small-button" id="newDraftFromLibraryBtn" type="button">新建</button>
           </div>
           <div class="drafts-strip" id="draftsStrip" aria-label="最近草稿"></div>
+        </section>
+
+        <section class="works-section" aria-labelledby="works-title">
+          <div class="section-head">
+            <div>
+              <h2 id="works-title">作品库</h2>
+            </div>
+          </div>
+          <div class="works-grid" id="worksGrid" aria-label="作品库"></div>
         </section>
 
         <div class="library-layout">
@@ -62,6 +72,7 @@
                   <button class="secondary-button small-button" id="newDraftBtn" type="button">新建</button>
                   <button class="secondary-button small-button" id="duplicateDraftBtn" type="button">复制</button>
                   <button class="secondary-button small-button" id="renameDraftBtn" type="button">重命名</button>
+                  <button class="secondary-button small-button" id="saveWorkBtn" type="button">保存作品</button>
                   <button class="secondary-button small-button" id="deleteDraftBtn" type="button">删除</button>
                 </div>
 
@@ -176,10 +187,6 @@
           </section>
         </div>
       </section>
-      <footer class="site-credit" aria-label="作者信息">
-        <span>by 布洛克琴</span>
-        <a href="https://github.com/LeoninCS/redbook-text-template" target="_blank" rel="noreferrer">GitHub</a>
-      </footer>
     </main>
 
     <script type="module" src="src/app.js"></script>
