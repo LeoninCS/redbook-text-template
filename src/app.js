@@ -115,9 +115,9 @@ function getTemplate(templateId = selectedTemplateId) {
   return templates.find((template) => template.id === templateId) || templates[0];
 }
 
-function getInkScene(template) {
+function getInkScene(template, index = 0) {
   const scenes = ["figure", "landscape", "tea", "tree", "house", "corridor"];
-  const seed = [...template.id].reduce((total, char) => total + char.charCodeAt(0), 0);
+  const seed = index + [...template.category].reduce((total, char) => total + char.charCodeAt(0), 0);
   return scenes[seed % scenes.length];
 }
 
@@ -127,11 +127,14 @@ function getFlowSize(template) {
   return sizes[seed % sizes.length];
 }
 
-function renderTemplateThumbnail(template) {
+function renderTemplateThumbnail(template, index = 0) {
+  const print = document.createElement("div");
+  print.className = "template-print";
+
   const thumb = document.createElement("div");
   thumb.className = "template-thumb";
   thumb.dataset.template = template.decoration.kind;
-  thumb.dataset.scene = getInkScene(template);
+  thumb.dataset.scene = getInkScene(template, index);
   thumb.dataset.size = getFlowSize(template);
   thumb.style.setProperty("--template-bg", template.bg);
   thumb.style.setProperty("--template-surface", template.surface);
@@ -139,14 +142,18 @@ function renderTemplateThumbnail(template) {
   thumb.style.setProperty("--template-accent", template.accent);
   thumb.innerHTML = `
     <span></span>
-    <strong>${template.name}</strong>
     <i class="ink-motif ink-motif-figure"></i>
     <i class="ink-motif ink-motif-landscape"></i>
     <i class="ink-motif ink-motif-botanical"></i>
     <i class="ink-motif ink-motif-tea"></i>
-    <i class="ink-seal"></i>
   `;
-  return thumb;
+
+  const title = document.createElement("strong");
+  title.className = "template-title";
+  title.textContent = template.name;
+
+  print.append(thumb, title);
+  return print;
 }
 
 function renderCategories() {
@@ -176,12 +183,12 @@ function renderLibrary() {
     templateGrid.append(empty);
     return;
   }
-  visibleTemplates.forEach((template) => {
+  visibleTemplates.forEach((template, index) => {
     const card = document.createElement("article");
     card.className = "template-card";
     card.dataset.templateId = template.id;
     card.tabIndex = 0;
-    card.append(renderTemplateThumbnail(template));
+    card.append(renderTemplateThumbnail(template, index));
 
     const favoriteBtn = document.createElement("button");
     favoriteBtn.type = "button";

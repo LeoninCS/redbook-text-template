@@ -352,6 +352,21 @@ export const templates = [
     decoration: "minimal",
   },
   {
+    id: "ink-negative-space",
+    name: "黑白留白画幅",
+    category: "简约",
+    description: "米白纸面、炭黑干刷和大片留白，适合沉静短文和标题海报",
+    bg: "#d8d4cc",
+    surface: "#f4f1ea",
+    text: "#11100d",
+    muted: "#6f6a61",
+    accent: "#11100d",
+    titleFont: 62,
+    bodyFont: 35,
+    align: "left",
+    decoration: "ink-negative-space",
+  },
+  {
     id: "data-hud",
     name: "数据 HUD",
     category: "高科技",
@@ -1206,6 +1221,50 @@ function drawDecoration(ctx, model) {
     ctx.moveTo(92, size.height - 118);
     ctx.lineTo(size.width - 92, size.height - 118);
     ctx.stroke();
+  }
+
+  if (decoration === "ink-negative-space") {
+    ctx.globalAlpha = 0.34;
+    ctx.strokeStyle = "rgba(17, 16, 13, 0.16)";
+    ctx.lineWidth = 1;
+    for (let y = 116; y < size.height - 116; y += 18) {
+      ctx.beginPath();
+      ctx.moveTo(92, y);
+      ctx.lineTo(size.width - 92, y + ((y / 18) % 3));
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = "#11100d";
+    for (let index = 0; index < 7; index += 1) {
+      const y = size.height - 314 + index * 14;
+      const height = 52 - index * 4;
+      ctx.fillRect(92 + (index % 2) * 8, y, size.width - 184 - (index % 3) * 18, height);
+    }
+
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = "#11100d";
+    for (let index = 0; index < 10; index += 1) {
+      const y = size.height - 178 + index * 10;
+      ctx.fillRect(92 + index * 7, y, size.width - 184 - index * 16, 7);
+    }
+
+    ctx.globalAlpha = 0.88;
+    ctx.strokeStyle = "#11100d";
+    ctx.lineWidth = 4;
+    const birds = [
+      [size.width - 360, 366],
+      [size.width - 300, 342],
+      [size.width - 246, 358],
+      [size.width - 198, 334],
+    ];
+    for (const [x, y] of birds) {
+      ctx.beginPath();
+      ctx.moveTo(x - 14, y);
+      ctx.quadraticCurveTo(x - 4, y - 8, x + 2, y);
+      ctx.quadraticCurveTo(x + 10, y - 7, x + 18, y + 1);
+      ctx.stroke();
+    }
   }
 
   if (decoration === "hud") {
