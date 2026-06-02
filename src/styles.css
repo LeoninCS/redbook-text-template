@@ -179,7 +179,6 @@ h1,
 h2,
 h3,
 .template-thumb strong,
-.template-card-copy h2,
 .preview-body {
   overflow-wrap: anywhere;
 }
@@ -188,14 +187,6 @@ h2 {
   margin-bottom: 0;
   font-size: 22px;
   font-weight: 650;
-}
-
-.subcopy {
-  max-width: 720px;
-  margin-bottom: 0;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1.5;
 }
 
 .author-mark {
@@ -229,7 +220,7 @@ h2 {
   align-items: flex-end;
   justify-content: space-between;
   gap: 24px;
-  min-height: 230px;
+  min-height: 170px;
   border: 1px solid var(--line);
   border-radius: 26px;
   background:
@@ -274,26 +265,6 @@ h2 {
   min-width: 0;
 }
 
-.hero-stats {
-  display: grid;
-  gap: 8px;
-  min-width: 190px;
-}
-
-.hero-stats span {
-  display: flex;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--line);
-  padding-bottom: 8px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.hero-stats strong {
-  color: var(--ink-soft);
-}
-
 .library-layout {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
@@ -333,9 +304,9 @@ h2 {
 
 .draft-card {
   display: grid;
-  align-content: space-between;
+  align-content: center;
   gap: 8px;
-  min-height: 124px;
+  min-height: 76px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background:
@@ -352,13 +323,6 @@ h2 {
 .draft-card.active {
   border-color: rgba(159, 63, 54, 0.34);
   box-shadow: 0 16px 34px rgba(42, 31, 28, 0.1);
-}
-
-.draft-card span,
-.draft-card small {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 750;
 }
 
 .draft-card strong {
@@ -427,9 +391,9 @@ h2 {
 }
 
 .template-card {
-  display: grid;
-  gap: 12px;
-  min-height: 390px;
+  position: relative;
+  display: block;
+  min-height: 0;
   border: 1px solid var(--line);
   border-radius: 14px;
   background:
@@ -442,15 +406,11 @@ h2 {
   transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
-.template-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
 .favorite-button {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 3;
   display: grid;
   width: 34px;
   height: 34px;
@@ -488,14 +448,6 @@ h2 {
   box-shadow: 0 22px 44px rgba(42, 31, 28, 0.12);
   outline: none;
   transform: translateY(-3px);
-}
-
-.template-category {
-  display: inline-block;
-  margin-bottom: 0;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
 }
 
 .template-thumb {
@@ -748,7 +700,7 @@ h2 {
 }
 
 .template-thumb strong,
-.template-thumb p {
+.template-thumb span {
   position: relative;
 }
 
@@ -757,26 +709,6 @@ h2 {
   font-size: 24px;
   line-height: 1.05;
   font-weight: 650;
-}
-
-.template-thumb p {
-  margin: 16px 0 0;
-  color: var(--template-text);
-  opacity: 0.72;
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.template-card-copy h2 {
-  margin-bottom: 6px;
-  font-size: 17px;
-}
-
-.template-card-copy p {
-  margin-bottom: 0;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.45;
 }
 
 .editor-view {
@@ -1671,35 +1603,6 @@ button:focus-visible {
     line-height: 1.04;
   }
 
-  .subcopy {
-    font-size: 13px;
-  }
-
-  .hero-stats {
-    display: flex;
-    gap: 8px;
-    min-width: 0;
-    overflow-x: auto;
-    padding-bottom: 2px;
-    scrollbar-width: none;
-  }
-
-  .hero-stats::-webkit-scrollbar {
-    display: none;
-  }
-
-  .hero-stats span {
-    display: grid;
-    gap: 4px;
-    flex: 0 0 148px;
-    min-height: 54px;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    background: rgba(255, 250, 238, 0.58);
-    padding: 10px;
-    font-size: 11px;
-  }
-
   .library-layout {
     grid-template-columns: 1fr;
     gap: 10px;
@@ -1730,7 +1633,7 @@ button:focus-visible {
 
   .draft-card {
     flex: 0 0 178px;
-    min-height: 108px;
+    min-height: 76px;
   }
 
   .library-sidebar {
@@ -1780,14 +1683,6 @@ button:focus-visible {
   .template-thumb {
     min-height: 210px;
     border-radius: 11px;
-  }
-
-  .template-card-copy h2 {
-    font-size: 16px;
-  }
-
-  .template-card-copy p {
-    font-size: 12px;
   }
 
   .editor-topbar {

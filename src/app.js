@@ -126,7 +126,6 @@ function renderTemplateThumbnail(template) {
   thumb.innerHTML = `
     <span></span>
     <strong>${template.name}</strong>
-    <p>文字排版预览</p>
   `;
   return thumb;
 }
@@ -134,28 +133,17 @@ function renderTemplateThumbnail(template) {
 function renderCategories() {
   categoryFilter.innerHTML = "";
   const categories = getLibraryCategories(templates, projectState.favoriteTemplateIds);
-  categories.forEach(({ name, count }) => {
+  categories.forEach(({ name }) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = name === selectedCategory ? "category-button active" : "category-button";
-    button.textContent = `${name} ${count}`;
+    button.textContent = name;
     button.addEventListener("click", () => {
       selectedCategory = name;
       renderCategories();
       renderLibrary();
     });
     categoryFilter.append(button);
-  });
-}
-
-function renderLibraryStats() {
-  const templateCountNodes = document.querySelectorAll("[data-template-count]");
-  const categoryCountNodes = document.querySelectorAll("[data-category-count]");
-  templateCountNodes.forEach((node) => {
-    node.textContent = String(templates.length);
-  });
-  categoryCountNodes.forEach((node) => {
-    node.textContent = String(new Set(templates.map((template) => template.category)).size);
   });
 }
 
@@ -176,15 +164,6 @@ function renderLibrary() {
     card.tabIndex = 0;
     card.append(renderTemplateThumbnail(template));
 
-    const content = document.createElement("div");
-    content.className = "template-card-copy";
-    const cardHead = document.createElement("div");
-    cardHead.className = "template-card-head";
-    const title = document.createElement("h2");
-    title.textContent = template.name;
-    const category = document.createElement("span");
-    category.className = "template-category";
-    category.textContent = template.category;
     const favoriteBtn = document.createElement("button");
     favoriteBtn.type = "button";
     favoriteBtn.className = projectState.favoriteTemplateIds.includes(template.id)
@@ -199,11 +178,7 @@ function renderLibrary() {
       renderCategories();
       renderLibrary();
     });
-    const description = document.createElement("p");
-    description.textContent = template.description;
-    cardHead.append(category, favoriteBtn);
-    content.append(cardHead, title, description);
-    card.append(content);
+    card.append(favoriteBtn);
 
     card.addEventListener("click", () => openEditor(template.id));
     card.addEventListener("keydown", (event) => {
@@ -219,18 +194,12 @@ function renderLibrary() {
 function renderDrafts() {
   draftsStrip.innerHTML = "";
   getRecentDrafts(projectState, 6).forEach((draftRecord) => {
-    const template = getTemplate(draftRecord.templateId);
     const card = document.createElement("button");
     card.type = "button";
     card.className = draftRecord.id === projectState.activeDraftId ? "draft-card active" : "draft-card";
-    const date = new Date(draftRecord.updatedAt);
-    const templateName = document.createElement("span");
-    templateName.textContent = template.name;
     const draftName = document.createElement("strong");
     draftName.textContent = draftRecord.name;
-    const updatedAt = document.createElement("small");
-    updatedAt.textContent = Number.isNaN(date.getTime()) ? "刚刚更新" : date.toLocaleDateString("zh-CN");
-    card.append(templateName, draftName, updatedAt);
+    card.append(draftName);
     card.addEventListener("click", () => openDraft(draftRecord.id));
     draftsStrip.append(card);
   });
@@ -686,7 +655,6 @@ function bindEvents() {
 
 loadState();
 renderTemplateSelect();
-renderLibraryStats();
 renderCategories();
 renderLibrary();
 renderDrafts();
