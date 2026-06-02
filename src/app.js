@@ -7,10 +7,10 @@ import {
   paginateRenderModel,
 } from "./renderer.js";
 import {
+  buildExportSummary,
   buildExportFilename,
   createPdfBlob,
   createZipBlob,
-  parsePageRange,
 } from "./exporter.js";
 import { buildAiSuggestions } from "./assistant.js";
 import {
@@ -70,6 +70,7 @@ const exportPngBtn = document.querySelector("#exportPngBtn");
 const exportPdfBtn = document.querySelector("#exportPdfBtn");
 const pageRangeInput = document.querySelector("#pageRangeInput");
 const exportScaleSelect = document.querySelector("#exportScaleSelect");
+const exportSummary = document.querySelector("#exportSummary");
 const previewPages = document.querySelector("#previewPages");
 const fontScaleInput = document.querySelector("#fontScaleInput");
 const lineHeightScaleInput = document.querySelector("#lineHeightScaleInput");
@@ -382,6 +383,22 @@ function renderPreview() {
   statusText.textContent = `${paginated.template.name} · 已自动分页 ${paginated.pages.length} 页`;
   persistActiveDraft();
   renderDrafts();
+  renderExportSummary(paginated);
+}
+
+function renderExportSummary(paginated = createPaginatedModel()) {
+  const summary = buildExportSummary(pageRangeInput.value, paginated.pages.length, getExportScale(), OUTPUT_SIZE);
+  exportSummary.className = summary.isValid ? "export-summary" : "export-summary is-warning";
+  exportSummary.innerHTML = "";
+
+  const message = document.createElement("strong");
+  message.textContent = summary.message;
+  const detail = document.createElement("span");
+  detail.textContent = summary.isValid
+    ? `页码：${summary.pages.join(", ")}`
+    : `总页数：${summary.pageCount}`;
+  exportSummary.append(message, detail);
+  return summary;
 }
 
 function openEditor(templateId = selectedTemplateId) {
@@ -494,9 +511,10 @@ function getExportScale() {
 }
 
 function getSelectedPages(paginated) {
-  const pages = parsePageRange(pageRangeInput.value, paginated.pages.length);
+  const summary = renderExportSummary(paginated);
+  const pages = summary.pages;
   if (!pages.length) {
-    statusText.textContent = "页码范围为空，请输入如 1-3,5。";
+    statusText.textContent = summary.message;
     return [];
   }
   return pages.map((pageNumber) => paginated.pages[pageNumber - 1]);
@@ -640,6 +658,14 @@ function bindEvents() {
       persistActiveDraft();
       renderPreview();
     });
+  });
+
+  pageRangeInput.addEventListener("input", () => {
+    renderExportSummary();
+  });
+
+  exportScaleSelect.addEventListener("change", () => {
+    renderExportSummary();
   });
 
   backBtn.addEventListener("click", openLibrary);
