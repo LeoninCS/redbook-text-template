@@ -68,9 +68,22 @@ test("provides at least thirty-two distinct templates", () => {
 });
 
 test("templates cover many visual decoration styles", () => {
-  const decorations = new Set(getTemplates().map((template) => template.decoration));
+  const decorations = new Set(getTemplates().map((template) => template.decoration.kind));
 
   assert.ok(decorations.size >= 28);
+});
+
+test("templates expose tokens layout and decoration metadata", () => {
+  for (const template of getTemplates()) {
+    assert.equal(typeof template.tokens.color.background, "string");
+    assert.equal(typeof template.tokens.color.surface, "string");
+    assert.equal(typeof template.tokens.color.text, "string");
+    assert.equal(typeof template.tokens.color.accent, "string");
+    assert.equal(typeof template.layout.titleFont, "number");
+    assert.equal(typeof template.layout.bodyFont, "number");
+    assert.equal(typeof template.layout.align, "string");
+    assert.equal(typeof template.decoration.kind, "string");
+  }
 });
 
 test("includes a risograph zine template from archived style research", () => {
@@ -78,7 +91,7 @@ test("includes a risograph zine template from archived style research", () => {
 
   assert.equal(template?.name, "Risograph Zine");
   assert.equal(template?.category, "复古");
-  assert.equal(template?.decoration, "riso-zine");
+  assert.equal(template?.decoration.kind, "riso-zine");
 });
 
 test("includes a solarpunk editorial template from archived style research", () => {
@@ -86,7 +99,7 @@ test("includes a solarpunk editorial template from archived style research", () 
 
   assert.equal(template?.name, "Solarpunk Editorial");
   assert.equal(template?.category, "高科技");
-  assert.equal(template?.decoration, "solarpunk");
+  assert.equal(template?.decoration.kind, "solarpunk");
 });
 
 test("includes an organic glassmorphism template from archived style research", () => {
@@ -94,7 +107,7 @@ test("includes an organic glassmorphism template from archived style research", 
 
   assert.equal(template?.name, "Organic Glassmorphism");
   assert.equal(template?.category, "高科技");
-  assert.equal(template?.decoration, "organic-glass");
+  assert.equal(template?.decoration.kind, "organic-glass");
 });
 
 test("includes a constructivist ledger template from archived style research", () => {
@@ -102,7 +115,7 @@ test("includes a constructivist ledger template from archived style research", (
 
   assert.equal(template?.name, "Constructivist Ledger");
   assert.equal(template?.category, "专业");
-  assert.equal(template?.decoration, "constructivist-ledger");
+  assert.equal(template?.decoration.kind, "constructivist-ledger");
 });
 
 test("includes a pixel botanical template from archived style research", () => {
@@ -110,7 +123,7 @@ test("includes a pixel botanical template from archived style research", () => {
 
   assert.equal(template?.name, "Pixel Botanical");
   assert.equal(template?.category, "手帐");
-  assert.equal(template?.decoration, "pixel-botanical");
+  assert.equal(template?.decoration.kind, "pixel-botanical");
 });
 
 test("includes a cyber rococo template from archived style research", () => {
@@ -118,7 +131,7 @@ test("includes a cyber rococo template from archived style research", () => {
 
   assert.equal(template?.name, "Cyber Rococo");
   assert.equal(template?.category, "炫酷");
-  assert.equal(template?.decoration, "cyber-rococo");
+  assert.equal(template?.decoration.kind, "cyber-rococo");
 });
 
 test("includes a holographic foil template from archived style research", () => {
@@ -126,7 +139,7 @@ test("includes a holographic foil template from archived style research", () => 
 
   assert.equal(template?.name, "Holographic Foil");
   assert.equal(template?.category, "炫酷");
-  assert.equal(template?.decoration, "holographic-foil");
+  assert.equal(template?.decoration.kind, "holographic-foil");
 });
 
 test("includes a solar clay ui template from archived style research", () => {
@@ -134,7 +147,7 @@ test("includes a solar clay ui template from archived style research", () => {
 
   assert.equal(template?.name, "Solar Clay UI");
   assert.equal(template?.category, "手帐");
-  assert.equal(template?.decoration, "solar-clay");
+  assert.equal(template?.decoration.kind, "solar-clay");
 });
 
 test("includes a blueprint editorial template from archived style research", () => {
@@ -142,7 +155,7 @@ test("includes a blueprint editorial template from archived style research", () 
 
   assert.equal(template?.name, "Blueprint Editorial");
   assert.equal(template?.category, "专业");
-  assert.equal(template?.decoration, "blueprint-editorial");
+  assert.equal(template?.decoration.kind, "blueprint-editorial");
 });
 
 test("includes a liminal polaroid template from archived style research", () => {
@@ -150,7 +163,7 @@ test("includes a liminal polaroid template from archived style research", () => 
 
   assert.equal(template?.name, "Liminal Polaroid");
   assert.equal(template?.category, "复古");
-  assert.equal(template?.decoration, "liminal-polaroid");
+  assert.equal(template?.decoration.kind, "liminal-polaroid");
 });
 
 test("parses markdown blocks for preview rendering", () => {
@@ -189,6 +202,65 @@ test("paginates long markdown drafts into bounded render pages", () => {
   assert.ok(paginated.pages.every((page) => page.items.every((item) => item.y + item.height <= paginated.bodyBottomY)));
 });
 
+test("honors manual markdown page breaks", () => {
+  const ctx = createMeasureContext();
+  const paginated = paginateRenderModel(ctx, buildRenderModel("clean-list", {
+    title: "手动分页",
+    body: "第一页正文\n\n---\n\n第二页正文",
+    signature: "布洛克琴",
+  }));
+
+  assert.equal(paginated.pages.length, 2);
+  assert.equal(paginated.pages[0].items.some((item) => item.segments?.some((segment) => segment.text.includes("第一页"))), true);
+  assert.equal(paginated.pages[1].items.some((item) => item.segments?.some((segment) => segment.text.includes("第二页"))), true);
+});
+
+test("moves a heading with its following body when the pair would orphan", () => {
+  const ctx = createMeasureContext();
+  const filler = Array.from({ length: 14 }, (_, index) => `铺垫段落 ${index + 1}`).join("\n");
+  const paginated = paginateRenderModel(ctx, buildRenderModel("clean-list", {
+    title: "标题跟随",
+    body: `${filler}\n## 跟随标题\n标题后的正文内容`,
+    signature: "布洛克琴",
+  }));
+
+  assert.ok(paginated.pages.length > 1);
+  assert.equal(paginated.pages.slice(0, -1).some((page) => page.items.at(-1)?.blockType === "heading"), false);
+});
+
+test("keeps wrapped list items in the same page group when possible", () => {
+  const ctx = createMeasureContext();
+  const filler = Array.from({ length: 13 }, (_, index) => `前置段落 ${index + 1}`).join("\n");
+  const paginated = paginateRenderModel(ctx, buildRenderModel("clean-list", {
+    title: "列表成组",
+    body: `${filler}\n- ${"成组列表项".repeat(20)}`,
+    signature: "布洛克琴",
+  }));
+  const listLocations = paginated.pages.flatMap((page) => page.items
+    .filter((item) => item.blockType === "list")
+    .map((item) => ({ pageNumber: page.pageNumber, groupId: item.groupId })));
+  const firstGroupId = listLocations[0]?.groupId;
+  const pagesWithFirstGroup = new Set(listLocations
+    .filter((item) => item.groupId === firstGroupId)
+    .map((item) => item.pageNumber));
+
+  assert.ok(firstGroupId);
+  assert.equal(pagesWithFirstGroup.size, 1);
+});
+
+test("reports remaining page space for pagination hints", () => {
+  const ctx = createMeasureContext();
+  const paginated = paginateRenderModel(ctx, buildRenderModel("clean-list", {
+    title: "空白提示",
+    body: "短正文",
+    signature: "布洛克琴",
+  }));
+
+  assert.equal(typeof paginated.pages[0].remainingHeight, "number");
+  assert.equal(typeof paginated.pages[0].remainingRatio, "number");
+  assert.ok(paginated.pages[0].remainingHeight > 0);
+});
+
 test("keeps inline markdown segments inside paginated list items", () => {
   const ctx = createMeasureContext();
   const paginated = paginateRenderModel(ctx, buildRenderModel("clean-list", {
@@ -212,6 +284,49 @@ test("draws a paginated page without runtime errors", () => {
       signature: "布洛克琴",
     }));
   });
+});
+
+test("quality fixtures paginate and draw stable pages", () => {
+  const fixtures = [
+    {
+      name: "short text",
+      title: "短文",
+      body: "一句话也要排得好看。",
+    },
+    {
+      name: "long text",
+      title: "长文",
+      body: Array.from({ length: 90 }, (_, index) => `第 ${index + 1} 段内容，保持手机阅读节奏。`).join("\n"),
+    },
+    {
+      name: "mixed zh en",
+      title: "中英混排",
+      body: "Build in public，也要把中文段落、English keywords 和 `code` 放在同一个版式里。",
+    },
+    {
+      name: "list text",
+      title: "清单",
+      body: "- 选择模板\n- 输入 Markdown\n- 导出 PNG ZIP\n- 生成 PDF",
+    },
+    {
+      name: "quote text",
+      title: "引用",
+      body: "> 好的排版会让普通文字更容易被读完。\n\n正文继续解释观点。",
+    },
+  ];
+
+  for (const fixture of fixtures) {
+    const measureCtx = createMeasureContext();
+    const drawCtx = createDrawingContext();
+    const paginated = paginateRenderModel(measureCtx, buildRenderModel("clean-list", {
+      ...fixture,
+      signature: "布洛克琴",
+    }));
+
+    assert.ok(paginated.pages.length >= 1, fixture.name);
+    assert.ok(paginated.pages.every((page) => page.items.every((item) => item.y + item.height <= paginated.bodyBottomY)), fixture.name);
+    assert.doesNotThrow(() => drawRenderModel(drawCtx, paginated), fixture.name);
+  }
 });
 
 test("templates cover the expected categories", () => {
@@ -242,6 +357,27 @@ test("builds render model with mobile post dimensions", () => {
   assert.deepEqual(model.size, OUTPUT_SIZE);
   assert.ok(model.contentWidth > 0);
   assert.ok(model.lineHeight > 0);
+});
+
+test("applies draft style controls to render model", () => {
+  const model = buildRenderModel("clean-list", {
+    body: "正文",
+    controls: {
+      fontScale: 1.2,
+      lineHeightScale: 1.15,
+      paddingScale: 0.9,
+      accent: "#ff3366",
+      surfaceAlpha: 0.35,
+      align: "center",
+    },
+  });
+
+  assert.equal(model.template.accent, "#ff3366");
+  assert.equal(model.template.align, "center");
+  assert.ok(model.template.bodyFont > getTemplates().find((template) => template.id === "clean-list").bodyFont);
+  assert.ok(model.lineHeight > Math.round(model.template.bodyFont * 1.62));
+  assert.ok(model.padding < 92);
+  assert.equal(model.surfaceAlpha, 0.35);
 });
 
 test("falls back to a valid template for unknown id", () => {

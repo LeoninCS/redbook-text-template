@@ -7,6 +7,13 @@ import {
   paginateRenderModel,
   parseInlineMarkdown,
 } from "./renderer.js";
+import {
+  buildExportFilename,
+  createPdfBlob,
+  createZipBlob,
+  parsePageRange,
+} from "./exporter.js";
+import { buildAiSuggestions } from "./assistant.js";
 
 const STORAGE_KEY = "redbook-renderer-state";
 
@@ -14,6 +21,14 @@ const defaultDraft = {
   title: "把普通文字排得更好看",
   body: "## 一张适合手机阅读的文字卡\n- 标题更醒目\n- 段落更有层次\n\n> 普通文案也可以有杂志感。\n\n用 **Markdown** 标出重点，也能保留 `关键词`。",
   signature: "布洛克琴",
+  controls: {
+    fontScale: 1,
+    lineHeightScale: 1,
+    paddingScale: 1,
+    accent: "",
+    surfaceAlpha: 1,
+    align: "",
+  },
 };
 
 const templates = getTemplates();
@@ -31,7 +46,17 @@ const statusText = document.querySelector("#statusText");
 const backBtn = document.querySelector("#backBtn");
 const exportPngBtn = document.querySelector("#exportPngBtn");
 const exportPdfBtn = document.querySelector("#exportPdfBtn");
+const pageRangeInput = document.querySelector("#pageRangeInput");
+const exportScaleSelect = document.querySelector("#exportScaleSelect");
 const previewPages = document.querySelector("#previewPages");
+const fontScaleInput = document.querySelector("#fontScaleInput");
+const lineHeightScaleInput = document.querySelector("#lineHeightScaleInput");
+const paddingScaleInput = document.querySelector("#paddingScaleInput");
+const surfaceAlphaInput = document.querySelector("#surfaceAlphaInput");
+const accentColorInput = document.querySelector("#accentColorInput");
+const alignSelect = document.querySelector("#alignSelect");
+const aiSuggestBtn = document.querySelector("#aiSuggestBtn");
+const aiOutput = document.querySelector("#aiOutput");
 
 let selectedTemplateId = templates[0].id;
 let draft = { ...defaultDraft };
@@ -59,7 +84,7 @@ function getTemplate(templateId = selectedTemplateId) {
 function renderTemplateThumbnail(template) {
   const thumb = document.createElement("div");
   thumb.className = "template-thumb";
-  thumb.dataset.template = template.decoration;
+  thumb.dataset.template = template.decoration.kind;
   thumb.style.setProperty("--template-bg", template.bg);
   thumb.style.setProperty("--template-surface", template.surface);
   thumb.style.setProperty("--template-text", template.text);
@@ -143,10 +168,17 @@ function renderTemplateSelect() {
 
 function setInputs() {
   const normalized = normalizeDraft(draft);
+  const template = getTemplate();
   titleInput.value = normalized.title;
   bodyInput.value = normalized.body;
   signatureInput.value = normalized.signature;
   templateSelect.value = selectedTemplateId;
+  fontScaleInput.value = normalized.controls.fontScale ?? 1;
+  lineHeightScaleInput.value = normalized.controls.lineHeightScale ?? 1;
+  paddingScaleInput.value = normalized.controls.paddingScale ?? 1;
+  surfaceAlphaInput.value = normalized.controls.surfaceAlpha ?? 1;
+  accentColorInput.value = normalized.controls.accent || template.accent;
+  alignSelect.value = normalized.controls.align || template.align;
 }
 
 function updateDraftFromInputs() {
@@ -154,16 +186,26 @@ function updateDraftFromInputs() {
     title: titleInput.value,
     body: bodyInput.value,
     signature: signatureInput.value,
+    controls: {
+      fontScale: Number(fontScaleInput.value),
+      lineHeightScale: Number(lineHeightScaleInput.value),
+      paddingScale: Number(paddingScaleInput.value),
+      accent: accentColorInput.value,
+      surfaceAlpha: Number(surfaceAlphaInput.value),
+      align: alignSelect.value,
+    },
   };
 }
 
-function applyPreviewTheme(phoneScreen, previewCard, template) {
+function applyPreviewTheme(phoneScreen, previewCard, paginated) {
+  const { template } = paginated;
   phoneScreen.style.setProperty("--preview-bg", template.bg);
   previewCard.style.setProperty("--preview-surface", template.surface);
   previewCard.style.setProperty("--preview-text", template.text);
   previewCard.style.setProperty("--preview-muted", template.muted);
   previewCard.style.setProperty("--preview-accent", template.accent);
-  previewCard.dataset.template = template.decoration;
+  previewCard.style.setProperty("--preview-surface-alpha", paginated.surfaceAlpha ?? 1);
+  previewCard.dataset.template = template.decoration.kind;
   previewCard.dataset.align = template.align;
 }
 
@@ -211,6 +253,11 @@ function renderPreviewPage(paginated, page) {
   const label = document.createElement("p");
   label.className = "preview-page-label";
   label.textContent = `Page ${page.pageNumber} / ${page.pageCount}`;
+  const spaceHint = document.createElement("p");
+  spaceHint.className = page.remainingRatio > 0.24 ? "preview-space-hint is-roomy" : "preview-space-hint";
+  spaceHint.textContent = page.remainingRatio > 0.24
+    ? `本页剩余约 ${Math.round(page.remainingRatio * 100)}% 空间`
+    : "本页内容接近满版";
 
   const phoneFrame = document.createElement("div");
   phoneFrame.className = "phone-frame";
@@ -218,7 +265,7 @@ function renderPreviewPage(paginated, page) {
   phoneScreen.className = "phone-screen";
   const previewCard = document.createElement("div");
   previewCard.className = "preview-card";
-  applyPreviewTheme(phoneScreen, previewCard, paginated.template);
+  applyPreviewTheme(phoneScreen, previewCard, paginated);
 
   const kicker = document.createElement("p");
   kicker.className = "preview-kicker";
@@ -242,7 +289,7 @@ function renderPreviewPage(paginated, page) {
   previewCard.append(kicker, title, body, signature, pageNumber);
   phoneScreen.append(previewCard);
   phoneFrame.append(phoneScreen);
-  shell.append(label, phoneFrame);
+  shell.append(label, phoneFrame, spaceHint);
   return shell;
 }
 
@@ -278,67 +325,135 @@ function createPaginatedModel() {
   return paginateRenderModel(measureCanvas.getContext("2d"), buildRenderModel(selectedTemplateId, draft));
 }
 
-function createCanvasForPage(paginated, page) {
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.download = filename;
+  link.href = url;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function dataUrlToBytes(dataUrl) {
+  const base64 = dataUrl.split(",")[1] || "";
+  return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
+}
+
+function getExportScale() {
+  return Math.max(1, Math.min(3, Number(exportScaleSelect.value) || 2));
+}
+
+function getSelectedPages(paginated) {
+  const pages = parsePageRange(pageRangeInput.value, paginated.pages.length);
+  if (!pages.length) {
+    statusText.textContent = "页码范围为空，请输入如 1-3,5。";
+    return [];
+  }
+  return pages.map((pageNumber) => paginated.pages[pageNumber - 1]);
+}
+
+function createCanvasForPage(paginated, page, scale = 1) {
   const canvas = document.createElement("canvas");
-  canvas.width = OUTPUT_SIZE.width;
-  canvas.height = OUTPUT_SIZE.height;
+  canvas.width = OUTPUT_SIZE.width * scale;
+  canvas.height = OUTPUT_SIZE.height * scale;
   const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
   drawRenderPage(ctx, paginated, page);
   return canvas;
 }
 
 function createCanvases() {
   const paginated = createPaginatedModel();
-  return paginated.pages.map((page) => createCanvasForPage(paginated, page));
+  const selectedPages = getSelectedPages(paginated);
+  const scale = getExportScale();
+  return {
+    paginated,
+    scale,
+    canvases: selectedPages.map((page) => ({
+      page,
+      canvas: createCanvasForPage(paginated, page, scale),
+    })),
+  };
 }
 
 function exportPng() {
   updateDraftFromInputs();
-  const canvases = createCanvases();
-  canvases.forEach((canvas, index) => {
-    const link = document.createElement("a");
-    const pageLabel = String(index + 1).padStart(2, "0");
-    link.download = `redbook-template-${selectedTemplateId}-${pageLabel}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
+  const { canvases, scale } = createCanvases();
+  if (!canvases.length) return;
+  const files = canvases.map(({ page, canvas }) => {
+    const dataUrl = canvas.toDataURL("image/png");
+    return {
+      name: buildExportFilename(selectedTemplateId, page.pageNumber, "png"),
+      bytes: dataUrlToBytes(dataUrl),
+    };
   });
-  statusText.textContent = `PNG 已导出 ${canvases.length} 页。`;
+  downloadBlob(createZipBlob(files), `redbook-template-${selectedTemplateId}-${scale}x.zip`);
+  statusText.textContent = `PNG ZIP 已导出 ${canvases.length} 页，倍率 ${scale}x。`;
 }
 
 function exportPdf() {
   updateDraftFromInputs();
-  const dataUrls = createCanvases().map((canvas) => canvas.toDataURL("image/png"));
-  const printWindow = window.open("", "_blank", "noopener,noreferrer");
-  if (!printWindow) {
-    statusText.textContent = "浏览器拦截了 PDF 窗口。";
-    return;
-  }
+  const { canvases, scale } = createCanvases();
+  if (!canvases.length) return;
+  const dataUrls = canvases.map(({ canvas }) => canvas.toDataURL("image/jpeg", 0.96));
+  downloadBlob(createPdfBlob(dataUrls, {
+    width: OUTPUT_SIZE.width * scale,
+    height: OUTPUT_SIZE.height * scale,
+  }), `redbook-template-${selectedTemplateId}-${scale}x.pdf`);
+  statusText.textContent = `PDF 已导出 ${canvases.length} 页，倍率 ${scale}x。`;
+}
 
-  printWindow.document.write(`
-    <!doctype html>
-    <html lang="zh-CN">
-      <head>
-        <meta charset="utf-8">
-        <title>导出 PDF</title>
-        <style>
-          @page { size: 1080px 1440px; margin: 0; }
-          body { margin: 0; background: #f3f4f6; }
-          img { width: 1080px; height: 1440px; display: block; page-break-after: always; break-after: page; }
-          img:last-child { page-break-after: auto; break-after: auto; }
-          @media print { body { background: white; } img { width: 100vw; height: 133.333vw; } }
-        </style>
-      </head>
-      <body>
-        ${dataUrls.map((dataUrl, index) => `<img src="${dataUrl}" alt="小红书文本模板导出预览第 ${index + 1} 页">`).join("")}
-      </body>
-    </html>
-  `);
-  printWindow.document.close();
-  printWindow.addEventListener("load", () => {
-    printWindow.focus();
-    printWindow.print();
+function renderAiSuggestions() {
+  updateDraftFromInputs();
+  const suggestions = buildAiSuggestions(draft, templates);
+  aiOutput.innerHTML = "";
+
+  const titleRow = document.createElement("div");
+  titleRow.className = "ai-suggestion-row";
+  const titleCopy = document.createElement("p");
+  titleCopy.innerHTML = `<strong>润色标题</strong><span>${suggestions.polishedTitle}</span>`;
+  const useTitleBtn = document.createElement("button");
+  useTitleBtn.type = "button";
+  useTitleBtn.className = "text-button";
+  useTitleBtn.textContent = "套用";
+  useTitleBtn.addEventListener("click", () => {
+    titleInput.value = suggestions.polishedTitle;
+    updateDraftFromInputs();
+    renderPreview();
   });
-  statusText.textContent = `PDF 打印窗口已打开，共 ${dataUrls.length} 页。`;
+  titleRow.append(titleCopy, useTitleBtn);
+
+  const cover = document.createElement("p");
+  cover.className = "ai-note";
+  cover.textContent = `封面标题：${suggestions.coverTitle}`;
+
+  const sectionList = document.createElement("div");
+  sectionList.className = "ai-section-list";
+  suggestions.sections.forEach((section) => {
+    const item = document.createElement("p");
+    item.textContent = `${section.title}：${section.summary}`;
+    sectionList.append(item);
+  });
+
+  const templateList = document.createElement("div");
+  templateList.className = "ai-template-list";
+  suggestions.recommendations.slice(0, 3).forEach(({ template, reason }) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "ai-template-button";
+    button.innerHTML = `<strong>${template.name}</strong><span>${reason}</span>`;
+    button.addEventListener("click", () => {
+      selectedTemplateId = template.id;
+      templateSelect.value = selectedTemplateId;
+      setInputs();
+      updateDraftFromInputs();
+      renderPreview();
+    });
+    templateList.append(button);
+  });
+
+  aiOutput.append(titleRow, cover, sectionList, templateList);
+  statusText.textContent = "AI 建议已生成。";
 }
 
 function bindEvents() {
@@ -348,7 +463,17 @@ function bindEvents() {
     renderPreview();
   });
 
-  [titleInput, bodyInput, signatureInput].forEach((input) => {
+  [
+    titleInput,
+    bodyInput,
+    signatureInput,
+    fontScaleInput,
+    lineHeightScaleInput,
+    paddingScaleInput,
+    surfaceAlphaInput,
+    accentColorInput,
+    alignSelect,
+  ].forEach((input) => {
     input.addEventListener("input", () => {
       updateDraftFromInputs();
       renderPreview();
@@ -358,6 +483,7 @@ function bindEvents() {
   backBtn.addEventListener("click", openLibrary);
   exportPngBtn.addEventListener("click", exportPng);
   exportPdfBtn.addEventListener("click", exportPdf);
+  aiSuggestBtn.addEventListener("click", renderAiSuggestions);
 }
 
 loadState();
