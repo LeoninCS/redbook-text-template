@@ -5,7 +5,6 @@ import {
   getTemplates,
   normalizeDraft,
   paginateRenderModel,
-  parseInlineMarkdown,
 } from "./renderer.js";
 import {
   buildExportFilename,
@@ -14,6 +13,24 @@ import {
   parsePageRange,
 } from "./exporter.js";
 import { buildAiSuggestions } from "./assistant.js";
+import {
+  createNewDraft,
+  deleteDraft,
+  duplicateDraft,
+  getActiveDraft,
+  loadProjectState,
+  renameDraft,
+  saveProjectState,
+  toggleFavoriteTemplate,
+  updateActiveDraft,
+} from "./project-store.js";
+import {
+  CATEGORY_ALL,
+  CATEGORY_FAVORITES,
+  getLibraryCategories,
+  getRecentDrafts,
+  getVisibleTemplates,
+} from "./project-view.js";
 
 const STORAGE_KEY = "redbook-renderer-state";
 
@@ -32,18 +49,23 @@ const defaultDraft = {
 };
 
 const templates = getTemplates();
-const categories = ["全部", "简约", "专业", "高科技", "炫酷", "复古", "手帐"];
 
 const libraryView = document.querySelector("#libraryView");
 const editorView = document.querySelector("#editorView");
 const templateGrid = document.querySelector("#templateGrid");
 const categoryFilter = document.querySelector("#categoryFilter");
+const draftsStrip = document.querySelector("#draftsStrip");
 const templateSelect = document.querySelector("#templateSelect");
 const titleInput = document.querySelector("#titleInput");
 const bodyInput = document.querySelector("#bodyInput");
 const signatureInput = document.querySelector("#signatureInput");
 const statusText = document.querySelector("#statusText");
 const backBtn = document.querySelector("#backBtn");
+const newDraftFromLibraryBtn = document.querySelector("#newDraftFromLibraryBtn");
+const newDraftBtn = document.querySelector("#newDraftBtn");
+const duplicateDraftBtn = document.querySelector("#duplicateDraftBtn");
+const renameDraftBtn = document.querySelector("#renameDraftBtn");
+const deleteDraftBtn = document.querySelector("#deleteDraftBtn");
 const exportPngBtn = document.querySelector("#exportPngBtn");
 const exportPdfBtn = document.querySelector("#exportPdfBtn");
 const pageRangeInput = document.querySelector("#pageRangeInput");
@@ -58,23 +80,32 @@ const alignSelect = document.querySelector("#alignSelect");
 const aiSuggestBtn = document.querySelector("#aiSuggestBtn");
 const aiOutput = document.querySelector("#aiOutput");
 
+let projectState;
 let selectedTemplateId = templates[0].id;
-let draft = { ...defaultDraft };
-let selectedCategory = "全部";
+let draft = cloneDraft(defaultDraft);
+let selectedCategory = CATEGORY_ALL;
 
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ selectedTemplateId, draft }));
+function cloneDraft(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function hydrateActiveDraft() {
+  const activeDraft = getActiveDraft(projectState);
+  selectedTemplateId = getTemplate(activeDraft.templateId).id;
+  draft = normalizeDraft(activeDraft.draft);
+}
+
+function persistActiveDraft(now = new Date().toISOString()) {
+  projectState = updateActiveDraft(projectState, {
+    templateId: selectedTemplateId,
+    draft,
+  }, now);
+  saveProjectState(localStorage, projectState);
 }
 
 function loadState() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (stored?.selectedTemplateId) selectedTemplateId = stored.selectedTemplateId;
-    if (stored?.draft) draft = { ...defaultDraft, ...stored.draft };
-  } catch {
-    selectedTemplateId = templates[0].id;
-    draft = { ...defaultDraft };
-  }
+  projectState = loadProjectState(localStorage, STORAGE_KEY, templates[0].id, defaultDraft);
+  hydrateActiveDraft();
 }
 
 function getTemplate(templateId = selectedTemplateId) {
@@ -99,16 +130,14 @@ function renderTemplateThumbnail(template) {
 
 function renderCategories() {
   categoryFilter.innerHTML = "";
-  categories.forEach((category) => {
-    const count = category === "全部"
-      ? templates.length
-      : templates.filter((template) => template.category === category).length;
+  const categories = getLibraryCategories(templates, projectState.favoriteTemplateIds);
+  categories.forEach(({ name, count }) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = category === selectedCategory ? "category-button active" : "category-button";
-    button.textContent = `${category} ${count}`;
+    button.className = name === selectedCategory ? "category-button active" : "category-button";
+    button.textContent = `${name} ${count}`;
     button.addEventListener("click", () => {
-      selectedCategory = category;
+      selectedCategory = name;
       renderCategories();
       renderLibrary();
     });
@@ -123,36 +152,84 @@ function renderLibraryStats() {
     node.textContent = String(templates.length);
   });
   categoryCountNodes.forEach((node) => {
-    node.textContent = String(categories.length - 1);
+    node.textContent = String(new Set(templates.map((template) => template.category)).size);
   });
 }
 
 function renderLibrary() {
   templateGrid.innerHTML = "";
-  const visibleTemplates = selectedCategory === "全部"
-    ? templates
-    : templates.filter((template) => template.category === selectedCategory);
+  const visibleTemplates = getVisibleTemplates(templates, selectedCategory, projectState.favoriteTemplateIds);
+  if (!visibleTemplates.length) {
+    const empty = document.createElement("p");
+    empty.className = "template-empty";
+    empty.textContent = selectedCategory === CATEGORY_FAVORITES ? "收藏模板后会出现在这里。" : "当前分类暂无模板。";
+    templateGrid.append(empty);
+    return;
+  }
   visibleTemplates.forEach((template) => {
-    const card = document.createElement("button");
-    card.type = "button";
+    const card = document.createElement("article");
     card.className = "template-card";
     card.dataset.templateId = template.id;
+    card.tabIndex = 0;
     card.append(renderTemplateThumbnail(template));
 
     const content = document.createElement("div");
     content.className = "template-card-copy";
+    const cardHead = document.createElement("div");
+    cardHead.className = "template-card-head";
     const title = document.createElement("h2");
     title.textContent = template.name;
     const category = document.createElement("span");
     category.className = "template-category";
     category.textContent = template.category;
+    const favoriteBtn = document.createElement("button");
+    favoriteBtn.type = "button";
+    favoriteBtn.className = projectState.favoriteTemplateIds.includes(template.id)
+      ? "favorite-button active"
+      : "favorite-button";
+    favoriteBtn.setAttribute("aria-label", `收藏 ${template.name}`);
+    favoriteBtn.textContent = "★";
+    favoriteBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      projectState = toggleFavoriteTemplate(projectState, template.id);
+      saveProjectState(localStorage, projectState);
+      renderCategories();
+      renderLibrary();
+    });
     const description = document.createElement("p");
     description.textContent = template.description;
-    content.append(category, title, description);
+    cardHead.append(category, favoriteBtn);
+    content.append(cardHead, title, description);
     card.append(content);
 
     card.addEventListener("click", () => openEditor(template.id));
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openEditor(template.id);
+      }
+    });
     templateGrid.append(card);
+  });
+}
+
+function renderDrafts() {
+  draftsStrip.innerHTML = "";
+  getRecentDrafts(projectState, 6).forEach((draftRecord) => {
+    const template = getTemplate(draftRecord.templateId);
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = draftRecord.id === projectState.activeDraftId ? "draft-card active" : "draft-card";
+    const date = new Date(draftRecord.updatedAt);
+    const templateName = document.createElement("span");
+    templateName.textContent = template.name;
+    const draftName = document.createElement("strong");
+    draftName.textContent = draftRecord.name;
+    const updatedAt = document.createElement("small");
+    updatedAt.textContent = Number.isNaN(date.getTime()) ? "刚刚更新" : date.toLocaleDateString("zh-CN");
+    card.append(templateName, draftName, updatedAt);
+    card.addEventListener("click", () => openDraft(draftRecord.id));
+    draftsStrip.append(card);
   });
 }
 
@@ -303,7 +380,8 @@ function renderPreview() {
     previewPages.append(renderPreviewPage(paginated, page));
   });
   statusText.textContent = `${paginated.template.name} · 已自动分页 ${paginated.pages.length} 页`;
-  saveState();
+  persistActiveDraft();
+  renderDrafts();
 }
 
 function openEditor(templateId = selectedTemplateId) {
@@ -315,9 +393,81 @@ function openEditor(templateId = selectedTemplateId) {
   renderPreview();
 }
 
+function openDraft(draftId) {
+  persistActiveDraft();
+  projectState = { ...projectState, activeDraftId: draftId };
+  hydrateActiveDraft();
+  saveProjectState(localStorage, projectState);
+  libraryView.hidden = true;
+  editorView.hidden = false;
+  setInputs();
+  renderPreview();
+}
+
 function openLibrary() {
+  persistActiveDraft();
+  renderCategories();
+  renderLibrary();
+  renderDrafts();
   editorView.hidden = true;
   libraryView.hidden = false;
+}
+
+function createDraft(templateId = selectedTemplateId) {
+  updateDraftFromInputs();
+  persistActiveDraft();
+  projectState = createNewDraft(projectState, templateId, defaultDraft);
+  hydrateActiveDraft();
+  saveProjectState(localStorage, projectState);
+  setInputs();
+  renderPreview();
+  libraryView.hidden = true;
+  editorView.hidden = false;
+}
+
+function duplicateCurrentDraft() {
+  updateDraftFromInputs();
+  persistActiveDraft();
+  projectState = duplicateDraft(projectState);
+  hydrateActiveDraft();
+  saveProjectState(localStorage, projectState);
+  setInputs();
+  renderPreview();
+}
+
+function renameCurrentDraft() {
+  const activeDraft = getActiveDraft(projectState);
+  const name = window.prompt("作品名称", activeDraft.name);
+  if (name === null) return;
+  projectState = renameDraft(projectState, activeDraft.id, name);
+  saveProjectState(localStorage, projectState);
+  renderDrafts();
+  statusText.textContent = "作品名称已更新。";
+}
+
+function deleteCurrentDraft() {
+  const activeDraft = getActiveDraft(projectState);
+  const confirmed = window.confirm(`删除作品「${activeDraft.name}」？`);
+  if (!confirmed) return;
+  if (projectState.drafts.length <= 1) {
+    projectState = updateActiveDraft(projectState, {
+      name: defaultDraft.title,
+      templateId: templates[0].id,
+      draft: defaultDraft,
+    });
+    hydrateActiveDraft();
+    saveProjectState(localStorage, projectState);
+    setInputs();
+    renderPreview();
+    statusText.textContent = "当前作品已重置。";
+    return;
+  }
+  projectState = deleteDraft(projectState, activeDraft.id);
+  hydrateActiveDraft();
+  saveProjectState(localStorage, projectState);
+  setInputs();
+  renderPreview();
+  statusText.textContent = "作品已删除。";
 }
 
 function createPaginatedModel() {
@@ -411,7 +561,11 @@ function renderAiSuggestions() {
   const titleRow = document.createElement("div");
   titleRow.className = "ai-suggestion-row";
   const titleCopy = document.createElement("p");
-  titleCopy.innerHTML = `<strong>润色标题</strong><span>${suggestions.polishedTitle}</span>`;
+  const titleLabel = document.createElement("strong");
+  titleLabel.textContent = "润色标题";
+  const polishedTitle = document.createElement("span");
+  polishedTitle.textContent = suggestions.polishedTitle;
+  titleCopy.append(titleLabel, polishedTitle);
   const useTitleBtn = document.createElement("button");
   useTitleBtn.type = "button";
   useTitleBtn.className = "text-button";
@@ -419,6 +573,7 @@ function renderAiSuggestions() {
   useTitleBtn.addEventListener("click", () => {
     titleInput.value = suggestions.polishedTitle;
     updateDraftFromInputs();
+    persistActiveDraft();
     renderPreview();
   });
   titleRow.append(titleCopy, useTitleBtn);
@@ -441,12 +596,17 @@ function renderAiSuggestions() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "ai-template-button";
-    button.innerHTML = `<strong>${template.name}</strong><span>${reason}</span>`;
+    const templateName = document.createElement("strong");
+    templateName.textContent = template.name;
+    const reasonText = document.createElement("span");
+    reasonText.textContent = reason;
+    button.append(templateName, reasonText);
     button.addEventListener("click", () => {
       selectedTemplateId = template.id;
       templateSelect.value = selectedTemplateId;
       setInputs();
       updateDraftFromInputs();
+      persistActiveDraft();
       renderPreview();
     });
     templateList.append(button);
@@ -460,6 +620,7 @@ function bindEvents() {
   templateSelect.addEventListener("change", () => {
     selectedTemplateId = templateSelect.value;
     updateDraftFromInputs();
+    persistActiveDraft();
     renderPreview();
   });
 
@@ -476,11 +637,17 @@ function bindEvents() {
   ].forEach((input) => {
     input.addEventListener("input", () => {
       updateDraftFromInputs();
+      persistActiveDraft();
       renderPreview();
     });
   });
 
   backBtn.addEventListener("click", openLibrary);
+  newDraftFromLibraryBtn.addEventListener("click", () => createDraft());
+  newDraftBtn.addEventListener("click", () => createDraft());
+  duplicateDraftBtn.addEventListener("click", duplicateCurrentDraft);
+  renameDraftBtn.addEventListener("click", renameCurrentDraft);
+  deleteDraftBtn.addEventListener("click", deleteCurrentDraft);
   exportPngBtn.addEventListener("click", exportPng);
   exportPdfBtn.addEventListener("click", exportPdf);
   aiSuggestBtn.addEventListener("click", renderAiSuggestions);
@@ -491,6 +658,7 @@ renderTemplateSelect();
 renderLibraryStats();
 renderCategories();
 renderLibrary();
+renderDrafts();
 setInputs();
 renderPreview();
 openLibrary();
