@@ -115,10 +115,24 @@ function getTemplate(templateId = selectedTemplateId) {
   return templates.find((template) => template.id === templateId) || templates[0];
 }
 
+function getInkScene(template) {
+  const scenes = ["figure", "landscape", "tea", "tree", "house", "corridor"];
+  const seed = [...template.id].reduce((total, char) => total + char.charCodeAt(0), 0);
+  return scenes[seed % scenes.length];
+}
+
+function getFlowSize(template) {
+  const sizes = ["short", "medium", "tall"];
+  const seed = [...template.decoration.kind].reduce((total, char) => total + char.charCodeAt(0), 0);
+  return sizes[seed % sizes.length];
+}
+
 function renderTemplateThumbnail(template) {
   const thumb = document.createElement("div");
   thumb.className = "template-thumb";
   thumb.dataset.template = template.decoration.kind;
+  thumb.dataset.scene = getInkScene(template);
+  thumb.dataset.size = getFlowSize(template);
   thumb.style.setProperty("--template-bg", template.bg);
   thumb.style.setProperty("--template-surface", template.surface);
   thumb.style.setProperty("--template-text", template.text);
@@ -126,6 +140,11 @@ function renderTemplateThumbnail(template) {
   thumb.innerHTML = `
     <span></span>
     <strong>${template.name}</strong>
+    <i class="ink-motif ink-motif-figure"></i>
+    <i class="ink-motif ink-motif-landscape"></i>
+    <i class="ink-motif ink-motif-botanical"></i>
+    <i class="ink-motif ink-motif-tea"></i>
+    <i class="ink-seal"></i>
   `;
   return thumb;
 }

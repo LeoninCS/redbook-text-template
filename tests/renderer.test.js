@@ -59,6 +59,7 @@ function createDrawingContext() {
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+const appSource = readFileSync(new URL("../src/app.js", import.meta.url), "utf8");
 
 test("homepage uses a compact Chinese product title", () => {
   assert.match(html, /<h1 id="library-title">小红书文字模板库<\/h1>/);
@@ -72,6 +73,48 @@ test("homepage chrome keeps copy to a minimum", () => {
   assert.doesNotMatch(html, />Categories</);
   assert.doesNotMatch(styles, /\.template-card-copy p\s*{/);
   assert.doesNotMatch(styles, /\.template-category\s*{/);
+});
+
+test("homepage includes reference ink illustration motifs", () => {
+  assert.match(html, /class="hero-art"/);
+  assert.match(styles, /--ink-silhouette:\s*rgba\(29, 28, 24, 0\.88\);/);
+  assert.match(styles, /--mist-horizon:\s*rgba\(217, 100, 136, 0\.3\);/);
+  assert.match(styles, /\.hero-art\s*{/);
+  assert.match(styles, /\.ink-panel-figure::before\s*{/);
+  assert.match(styles, /\.ink-panel-landscape::before\s*{/);
+  assert.match(styles, /\.ink-panel-tea::before\s*{/);
+  assert.match(styles, /\.ink-panel-tea::after\s*{/);
+  assert.match(styles, /\.ink-seal\s*{/);
+  assert.match(styles, /\.template-thumb \.ink-seal\s*{/);
+});
+
+test("template thumbnails use distinct ink scene compositions", () => {
+  assert.match(appSource, /thumb\.dataset\.scene = getInkScene\(template\);/);
+  assert.match(appSource, /thumb\.dataset\.size = getFlowSize\(template\);/);
+  assert.match(styles, /\.template-thumb\[data-scene="figure"\]\s*{/);
+  assert.match(styles, /\.template-thumb\[data-scene="landscape"\]\s*{/);
+  assert.match(styles, /\.template-thumb\[data-scene="tea"\]\s*{/);
+  assert.match(styles, /\.template-thumb\[data-scene="tree"\]\s*{/);
+  assert.match(styles, /\.template-thumb\[data-scene="house"\]\s*{/);
+  assert.match(styles, /\.template-thumb\[data-scene="corridor"\]\s*{/);
+});
+
+test("homepage uses a redbook style waterfall feed", () => {
+  assert.match(styles, /\.library-layout\s*{[\s\S]*display:\s*block;/);
+  assert.match(styles, /\.library-sidebar\s*{[\s\S]*position:\s*sticky;/);
+  assert.match(styles, /\.category-filter\s*{[\s\S]*display:\s*flex;/);
+  assert.match(styles, /\.template-grid\s*{[\s\S]*column-count:\s*4;/);
+  assert.match(styles, /\.template-card\s*{[\s\S]*break-inside:\s*avoid;/);
+  assert.match(styles, /\.template-thumb\[data-size="tall"\]\s*{/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.template-grid\s*{[\s\S]*column-count:\s*2;/);
+});
+
+test("homepage keeps the feed header compact", () => {
+  assert.match(styles, /\.hero\s*{[\s\S]*min-height:\s*96px;/);
+  assert.match(styles, /\.hero\s*{[\s\S]*border:\s*0;/);
+  assert.match(styles, /\.hero\s*{[\s\S]*box-shadow:\s*none;/);
+  assert.match(styles, /\.hero-art\s*{[\s\S]*width:\s*min\(360px, 36%\);/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.hero-art\s*{[\s\S]*display:\s*none;/);
 });
 
 test("provides at least thirty-two distinct templates", () => {
@@ -193,12 +236,12 @@ test("parses markdown blocks for preview rendering", () => {
 
 test("styles include a dedicated mobile layout", () => {
   assert.match(styles, /@media \(max-width: 640px\)/);
-  assert.match(styles, /\.library-layout\s*{\s*grid-template-columns: 1fr;/);
+  assert.match(styles, /\.library-layout\s*{\s*display: block;/);
   assert.match(styles, /\.category-filter\s*{\s*display: flex;/);
   assert.match(styles, /\.preview-page-shell\s*{\s*width: min\(310px, 100%\);/);
   assert.match(styles, /\.preview-panel\s*{\s*order: -1;/);
   assert.match(styles, /h1\s*{\s*font-size: clamp\(27px, 8vw, 34px\);/);
-  assert.match(styles, /\.template-card\s*{\s*min-height: auto;/);
+  assert.match(styles, /\.template-grid\s*{\s*column-count: 2;/);
 });
 
 test("styles include the ink wash paper UI language", () => {
@@ -209,7 +252,8 @@ test("styles include the ink wash paper UI language", () => {
   assert.match(styles, /body::after\s*{/);
   assert.match(styles, /\.site-nav::after\s*{/);
   assert.match(styles, /\.hero::before\s*{/);
-  assert.match(styles, /\.template-grid\s*{[\s\S]*linear-gradient\(180deg, rgba\(247, 240, 223, 0.86\), rgba\(239, 183, 199, 0.22\)\)/);
+  assert.match(styles, /\.template-thumb\s*{[\s\S]*linear-gradient\(180deg, rgba\(255, 250, 238, 0\.66\), rgba\(247, 240, 223, 0\.42\)\)/);
+  assert.match(styles, /\.template-thumb\[data-scene="tree"\]::after\s*{[\s\S]*radial-gradient\(ellipse at 34% 36%, rgba\(217, 100, 136, 0\.54\)/);
 });
 
 test("paginates long markdown drafts into bounded render pages", () => {
