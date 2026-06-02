@@ -7,9 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -33,9 +31,6 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,15 +40,21 @@ jobs:
           mkdir -p _site/src
           cp index.html _site/
           cp -R src/. _site/src/
+          touch _site/.nojekyll
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Publish gh-pages branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages || true
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git worktree add _pages origin/gh-pages
+          else
+            git worktree add --detach _pages
+            git -C _pages checkout --orphan gh-pages
+          fi
+          find _pages -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R _site/. _pages/
+          git -C _pages add -A
+          git -C _pages commit -m "deploy: update github pages" || exit 0
+          git -C _pages push origin HEAD:gh-pages
