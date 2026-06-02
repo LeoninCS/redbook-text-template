@@ -554,7 +554,30 @@ export function normalizeControls(controls = {}, template = templates[0]) {
     accent: cleanColor(controls.accent, template.accent),
     surfaceAlpha: clamp(controls.surfaceAlpha, 0.16, 1, 1),
     align: ["left", "center"].includes(controls.align) ? controls.align : template.align,
+    toneMode: ["auto", "light", "dark"].includes(controls.toneMode) ? controls.toneMode : "auto",
   };
+}
+
+function applyToneMode(template, toneMode) {
+  if (toneMode === "dark") {
+    return {
+      ...template,
+      bg: "#111111",
+      surface: "#1f1f1f",
+      text: "#f7f4ed",
+      muted: "#a6a29a",
+    };
+  }
+  if (toneMode === "light") {
+    return {
+      ...template,
+      bg: "#f7f4ed",
+      surface: "#ffffff",
+      text: "#171717",
+      muted: "#6f6b63",
+    };
+  }
+  return template;
 }
 
 export function normalizeDraft(draft = {}) {
@@ -660,7 +683,7 @@ export function buildRenderModel(templateId, draft = {}) {
   const normalizedDraft = normalizeDraft(draft);
   const controls = normalizeControls(normalizedDraft.controls, template);
   const controlledTemplate = {
-    ...template,
+    ...applyToneMode(template, controls.toneMode),
     accent: controls.accent,
     align: controls.align,
     titleFont: Math.round(template.titleFont * controls.fontScale),

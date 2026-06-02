@@ -380,6 +380,34 @@ test("applies draft style controls to render model", () => {
   assert.equal(model.surfaceAlpha, 0.35);
 });
 
+test("applies output tone mode to render model colors", () => {
+  const darkModel = buildRenderModel("clean-list", {
+    body: "正文",
+    controls: {
+      toneMode: "dark",
+      accent: "#ff3366",
+    },
+  });
+  const lightModel = buildRenderModel("night-glow", {
+    body: "正文",
+    controls: {
+      toneMode: "light",
+      accent: "#0f766e",
+    },
+  });
+
+  assert.equal(darkModel.controls.toneMode, "dark");
+  assert.equal(darkModel.template.bg, "#111111");
+  assert.equal(darkModel.template.surface, "#1f1f1f");
+  assert.equal(darkModel.template.text, "#f7f4ed");
+  assert.equal(darkModel.template.accent, "#ff3366");
+  assert.equal(lightModel.controls.toneMode, "light");
+  assert.equal(lightModel.template.bg, "#f7f4ed");
+  assert.equal(lightModel.template.surface, "#ffffff");
+  assert.equal(lightModel.template.text, "#171717");
+  assert.equal(lightModel.template.accent, "#0f766e");
+});
+
 test("falls back to a valid template for unknown id", () => {
   const model = buildRenderModel("missing-template", { body: "正文" });
 
