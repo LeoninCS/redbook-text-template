@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>小红书文本模板排版工具</title>
+    <link rel="stylesheet" href="src/styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <nav class="site-nav" aria-label="站点信息">
+        <a class="brand-lockup" href="#library-title" aria-label="Redbook Text Template">
+          <span class="brand-mark">RT</span>
+          <span>Redbook Text Template</span>
+        </a>
+        <p class="author-mark">by 布洛克琴 · <a href="https://github.com/LeoninCS/redbook-text-template" target="_blank" rel="noreferrer">GitHub</a></p>
+      </nav>
+
+      <section class="library-view" id="libraryView" aria-labelledby="library-title">
+        <header class="hero">
+          <div>
+            <p class="eyebrow">Redbook Text Template</p>
+            <h1 id="library-title">Template library for text-first Rednote posts</h1>
+            <p class="subcopy">选择模板，输入 Markdown 文案，实时预览移动端效果，导出 PNG 或 PDF。</p>
+          </div>
+          <div class="hero-stats" aria-label="模板统计">
+            <span><strong data-template-count>0</strong> Templates</span>
+            <span><strong data-category-count>0</strong> Categories</span>
+            <span>Markdown Ready</span>
+          </div>
+        </header>
+
+        <div class="library-layout">
+          <aside class="library-sidebar">
+            <p class="eyebrow">Categories</p>
+            <nav class="category-filter" id="categoryFilter" aria-label="模板分类"></nav>
+          </aside>
+          <section class="template-grid" id="templateGrid" aria-label="模板库"></section>
+        </div>
+      </section>
+
+      <section class="editor-view" id="editorView" hidden aria-labelledby="editor-title">
+        <header class="editor-topbar">
+          <button class="secondary-button" id="backBtn" type="button">Back</button>
+          <div>
+            <p class="eyebrow">Editor</p>
+            <h2 id="editor-title">Compose</h2>
+          </div>
+          <p class="author-mark compact">by 布洛克琴 · <a href="https://github.com/LeoninCS/redbook-text-template" target="_blank" rel="noreferrer">GitHub</a></p>
+          <div class="export-actions">
+            <button class="secondary-button" id="exportPngBtn" type="button">导出 PNG</button>
+            <button class="primary-button" id="exportPdfBtn" type="button">导出 PDF</button>
+          </div>
+        </header>
+
+        <div class="editor-grid">
+          <aside class="input-panel">
+            <div class="field">
+              <label for="templateSelect">当前模板</label>
+              <select id="templateSelect" name="templateSelect"></select>
+            </div>
+
+            <div class="field">
+              <label for="titleInput">标题</label>
+              <input id="titleInput" type="text" maxlength="42" placeholder="把普通文字排得更好看">
+            </div>
+
+            <div class="field">
+              <label for="bodyInput">正文</label>
+              <textarea id="bodyInput" rows="12" placeholder="支持 Markdown：## 标题、- 列表、> 引用、**重点**、`代码`"></textarea>
+            </div>
+
+            <div class="field">
+              <label for="signatureInput">署名</label>
+              <input id="signatureInput" type="text" maxlength="24" placeholder="小红书文本模板">
+            </div>
+
+            <p class="status" id="statusText" role="status"></p>
+          </aside>
+
+          <section class="preview-panel" aria-label="手机预览">
+            <div class="preview-pages" id="previewPages"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>
