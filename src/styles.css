@@ -593,6 +593,30 @@ h2 {
   justify-content: flex-end;
 }
 
+.compact-field {
+  display: grid;
+  gap: 4px;
+  min-width: 96px;
+}
+
+.compact-field span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.compact-field input,
+.compact-field select {
+  min-height: 38px;
+  border-radius: 8px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.compact-field input {
+  width: 136px;
+}
+
 .editor-grid {
   display: grid;
   grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
@@ -656,6 +680,121 @@ textarea {
   line-height: 1.7;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px;
+}
+
+.control-panel {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+  padding: 12px;
+}
+
+.ai-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 12px;
+}
+
+.ai-panel-head,
+.ai-suggestion-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ai-panel-head span {
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.small-button {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+
+.ai-output {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-output p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.ai-suggestion-row strong,
+.ai-suggestion-row span {
+  display: block;
+}
+
+.text-button {
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.ai-section-list,
+.ai-template-list {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-template-button {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 9px;
+  color: var(--ink);
+  text-align: left;
+}
+
+.ai-template-button span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.control-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.range-field,
+.color-field,
+.select-field {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.range-field input,
+.color-field input,
+.select-field select {
+  min-height: 36px;
+}
+
+.range-field input {
+  padding: 0;
+  accent-color: var(--primary);
+}
+
+.color-field input {
+  padding: 4px;
 }
 
 input:focus,
@@ -737,6 +876,18 @@ button:focus-visible {
   text-align: center;
 }
 
+.preview-space-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.preview-space-hint.is-roomy {
+  color: var(--ink);
+}
+
 .phone-frame {
   width: 100%;
   aspect-ratio: 390 / 812;
@@ -762,9 +913,17 @@ button:focus-visible {
   min-height: 100%;
   overflow: hidden;
   border-radius: 20px;
-  background: var(--preview-surface);
+  background: transparent;
   color: var(--preview-text);
   padding: 28px 26px;
+}
+
+.preview-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--preview-surface);
+  opacity: var(--preview-surface-alpha, 1);
 }
 
 .preview-card::before {
@@ -772,6 +931,7 @@ button:focus-visible {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 1;
 }
 
 .preview-card[data-template="grid"]::before {
@@ -1013,6 +1173,7 @@ button:focus-visible {
 .preview-body,
 .preview-signature {
   position: relative;
+  z-index: 2;
 }
 
 .preview-kicker {
@@ -1115,6 +1276,7 @@ button:focus-visible {
 
 .preview-page-number {
   position: relative;
+  z-index: 2;
   align-self: flex-end;
   margin: 12px 0 0;
   color: var(--preview-muted);
@@ -1294,7 +1456,10 @@ button:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .export-actions button {
+  .export-actions button,
+  .compact-field,
+  .compact-field input,
+  .compact-field select {
     width: 100%;
   }
 

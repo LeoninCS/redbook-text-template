@@ -488,16 +488,73 @@ export const templates = [
   },
 ];
 
+function normalizeTemplate(template) {
+  return {
+    ...template,
+    tokens: {
+      color: {
+        background: template.bg,
+        surface: template.surface,
+        text: template.text,
+        muted: template.muted,
+        accent: template.accent,
+      },
+      typography: {
+        titleFont: template.titleFont,
+        bodyFont: template.bodyFont,
+      },
+    },
+    layout: {
+      titleFont: template.titleFont,
+      bodyFont: template.bodyFont,
+      align: template.align,
+      padding: 92,
+      aspectRatio: `${OUTPUT_SIZE.width}:${OUTPUT_SIZE.height}`,
+    },
+    decoration: {
+      kind: template.decoration,
+      category: template.category,
+    },
+    decorationId: template.decoration,
+  };
+}
+
+function templateDecoration(template) {
+  return typeof template.decoration === "string" ? template.decoration : template.decoration?.kind;
+}
+
 export function getTemplates() {
-  return templates.map((template) => ({ ...template }));
+  return templates.map((template) => normalizeTemplate(template));
 }
 
 export function getTemplate(templateId) {
-  return templates.find((template) => template.id === templateId) || templates[0];
+  return normalizeTemplate(templates.find((template) => template.id === templateId) || templates[0]);
 }
 
 function cleanText(value) {
   return String(value ?? "").replace(/\r\n/g, "\n").trim();
+}
+
+function clamp(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.min(max, Math.max(min, number));
+}
+
+function cleanColor(value, fallback) {
+  const color = String(value || "").trim();
+  return /^#[0-9a-f]{6}$/i.test(color) ? color : fallback;
+}
+
+export function normalizeControls(controls = {}, template = templates[0]) {
+  return {
+    fontScale: clamp(controls.fontScale, 0.82, 1.28, 1),
+    lineHeightScale: clamp(controls.lineHeightScale, 0.86, 1.28, 1),
+    paddingScale: clamp(controls.paddingScale, 0.76, 1.16, 1),
+    accent: cleanColor(controls.accent, template.accent),
+    surfaceAlpha: clamp(controls.surfaceAlpha, 0.16, 1, 1),
+    align: ["left", "center"].includes(controls.align) ? controls.align : template.align,
+  };
 }
 
 export function normalizeDraft(draft = {}) {
@@ -505,6 +562,7 @@ export function normalizeDraft(draft = {}) {
     title: cleanText(draft.title) || "把普通文字排得更好看",
     body: cleanText(draft.body) || PLACEHOLDER_BODY,
     signature: cleanText(draft.signature) || "小红书文本模板",
+    controls: draft.controls || {},
   };
 }
 
@@ -560,6 +618,11 @@ export function parseMarkdownBlocks(markdown = "") {
 
     flushList();
 
+    if (/^(---|\*\*\*|<!--\s*pagebreak\s*-->)$/i.test(line)) {
+      blocks.push({ type: "pageBreak" });
+      continue;
+    }
+
     const headingMatch = line.match(/^(#{1,3})\s+(.+)$/);
     if (headingMatch) {
       blocks.push({
@@ -595,14 +658,25 @@ export function parseMarkdownBlocks(markdown = "") {
 export function buildRenderModel(templateId, draft = {}) {
   const template = getTemplate(templateId);
   const normalizedDraft = normalizeDraft(draft);
+  const controls = normalizeControls(normalizedDraft.controls, template);
+  const controlledTemplate = {
+    ...template,
+    accent: controls.accent,
+    align: controls.align,
+    titleFont: Math.round(template.titleFont * controls.fontScale),
+    bodyFont: Math.round(template.bodyFont * controls.fontScale),
+  };
+  const padding = Math.round(92 * controls.paddingScale);
 
   return {
-    template,
+    template: controlledTemplate,
     draft: normalizedDraft,
+    controls,
     size: { ...OUTPUT_SIZE },
-    padding: 92,
-    contentWidth: OUTPUT_SIZE.width - 184,
-    lineHeight: Math.round(template.bodyFont * 1.62),
+    padding,
+    contentWidth: OUTPUT_SIZE.width - padding * 2,
+    surfaceAlpha: controls.surfaceAlpha,
+    lineHeight: Math.round(controlledTemplate.bodyFont * 1.62 * controls.lineHeightScale),
     generatedAt: new Date().toISOString(),
   };
 }
@@ -683,12 +757,13 @@ function roundRect(ctx, x, y, width, height, radius) {
 
 function drawDecoration(ctx, model) {
   const { template, size } = model;
+  const decoration = templateDecoration(template);
   ctx.save();
   ctx.strokeStyle = template.accent;
   ctx.fillStyle = template.accent;
   ctx.globalAlpha = 0.85;
 
-  if (template.decoration === "corner") {
+  if (decoration === "corner") {
     ctx.lineWidth = 10;
     ctx.beginPath();
     ctx.moveTo(80, 190);
@@ -702,7 +777,7 @@ function drawDecoration(ctx, model) {
     ctx.stroke();
   }
 
-  if (template.decoration === "grid") {
+  if (decoration === "grid") {
     ctx.globalAlpha = 0.18;
     ctx.lineWidth = 2;
     for (let x = 80; x < size.width; x += 72) {
@@ -719,12 +794,12 @@ function drawDecoration(ctx, model) {
     }
   }
 
-  if (template.decoration === "bars") {
+  if (decoration === "bars") {
     ctx.fillRect(90, 100, 260, 18);
     ctx.fillRect(size.width - 350, size.height - 126, 260, 18);
   }
 
-  if (template.decoration === "dots") {
+  if (decoration === "dots") {
     for (let index = 0; index < 18; index += 1) {
       ctx.beginPath();
       ctx.arc(110 + index * 48, 118, 8, 0, Math.PI * 2);
@@ -732,7 +807,7 @@ function drawDecoration(ctx, model) {
     }
   }
 
-  if (template.decoration === "solar-clay") {
+  if (decoration === "solar-clay") {
     const sun = ctx.createRadialGradient(size.width - 190, 180, 20, size.width - 190, 180, 280);
     sun.addColorStop(0, "rgba(245, 158, 11, 0.58)");
     sun.addColorStop(1, "rgba(245, 158, 11, 0)");
@@ -762,7 +837,7 @@ function drawDecoration(ctx, model) {
     drawClayBlob(126, size.height - 360, 140, 140, "#9be7c9");
   }
 
-  if (template.decoration === "rule") {
+  if (decoration === "rule") {
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.moveTo(92, 236);
@@ -775,7 +850,7 @@ function drawDecoration(ctx, model) {
     ctx.stroke();
   }
 
-  if (template.decoration === "glow") {
+  if (decoration === "glow") {
     const gradient = ctx.createRadialGradient(size.width - 160, 160, 20, size.width - 160, 160, 360);
     gradient.addColorStop(0, template.accent);
     gradient.addColorStop(1, "rgba(110, 231, 249, 0)");
@@ -784,7 +859,7 @@ function drawDecoration(ctx, model) {
     ctx.fillRect(0, 0, size.width, size.height);
   }
 
-  if (template.decoration === "swiss") {
+  if (decoration === "swiss") {
     ctx.globalAlpha = 0.16;
     ctx.lineWidth = 2;
     for (let x = 92; x <= size.width - 92; x += 118) {
@@ -798,14 +873,14 @@ function drawDecoration(ctx, model) {
     ctx.fillRect(size.width - 300, 96, 208, 22);
   }
 
-  if (template.decoration === "block") {
+  if (decoration === "block") {
     ctx.globalAlpha = 1;
     ctx.fillRect(62, 62, size.width - 124, 84);
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(size.width - 220, size.height - 220, 120, 120);
   }
 
-  if (template.decoration === "sun") {
+  if (decoration === "sun") {
     ctx.globalAlpha = 0.22;
     ctx.beginPath();
     ctx.arc(size.width - 172, 180, 126, 0, Math.PI * 2);
@@ -816,7 +891,7 @@ function drawDecoration(ctx, model) {
     }
   }
 
-  if (template.decoration === "liminal-polaroid") {
+  if (decoration === "liminal-polaroid") {
     const frameX = 114;
     const frameY = 104;
     const frameW = size.width - 228;
@@ -878,7 +953,7 @@ function drawDecoration(ctx, model) {
     ctx.fillRect(frameX + frameW - 250, frameY + frameH - 152, 190, 4);
   }
 
-  if (template.decoration === "collage") {
+  if (decoration === "collage") {
     ctx.globalAlpha = 0.82;
     ctx.fillRect(110, 116, 180, 54);
     ctx.globalAlpha = 0.16;
@@ -886,7 +961,7 @@ function drawDecoration(ctx, model) {
     ctx.fillRect(120, size.height - 310, 220, 130);
   }
 
-  if (template.decoration === "deco") {
+  if (decoration === "deco") {
     ctx.globalAlpha = 0.88;
     ctx.lineWidth = 5;
     roundRect(ctx, 96, 96, size.width - 192, size.height - 192, 18);
@@ -896,7 +971,7 @@ function drawDecoration(ctx, model) {
     ctx.stroke();
   }
 
-  if (template.decoration === "glass") {
+  if (decoration === "glass") {
     const gradient = ctx.createLinearGradient(62, 62, size.width - 62, size.height - 62);
     gradient.addColorStop(0, "rgba(124, 58, 237, 0.22)");
     gradient.addColorStop(0.5, "rgba(14, 165, 233, 0.18)");
@@ -906,7 +981,7 @@ function drawDecoration(ctx, model) {
     ctx.fillRect(62, 62, size.width - 124, size.height - 124);
   }
 
-  if (template.decoration === "organic-glass") {
+  if (decoration === "organic-glass") {
     const wash = ctx.createLinearGradient(70, 70, size.width - 70, size.height - 70);
     wash.addColorStop(0, "rgba(69, 184, 172, 0.22)");
     wash.addColorStop(0.45, "rgba(202, 135, 244, 0.2)");
@@ -940,7 +1015,7 @@ function drawDecoration(ctx, model) {
     }
   }
 
-  if (template.decoration === "solarpunk") {
+  if (decoration === "solarpunk") {
     const sun = ctx.createRadialGradient(size.width - 210, 185, 24, size.width - 210, 185, 250);
     sun.addColorStop(0, "rgba(245, 165, 36, 0.58)");
     sun.addColorStop(1, "rgba(245, 165, 36, 0)");
@@ -979,7 +1054,7 @@ function drawDecoration(ctx, model) {
     }
   }
 
-  if (template.decoration === "riso") {
+  if (decoration === "riso") {
     ctx.globalAlpha = 0.34;
     ctx.beginPath();
     ctx.arc(190, 180, 120, 0, Math.PI * 2);
@@ -990,7 +1065,7 @@ function drawDecoration(ctx, model) {
     ctx.fill();
   }
 
-  if (template.decoration === "riso-zine") {
+  if (decoration === "riso-zine") {
     ctx.globalCompositeOperation = "multiply";
     ctx.globalAlpha = 0.34;
     ctx.fillStyle = "#ff4f87";
@@ -1021,7 +1096,7 @@ function drawDecoration(ctx, model) {
     }
   }
 
-  if (template.decoration === "terminal") {
+  if (decoration === "terminal") {
     ctx.globalAlpha = 0.2;
     ctx.lineWidth = 2;
     for (let y = 92; y < size.height - 92; y += 36) {
@@ -1036,7 +1111,7 @@ function drawDecoration(ctx, model) {
     ctx.fillRect(160, 96, 18, 18);
   }
 
-  if (template.decoration === "leaf") {
+  if (decoration === "leaf") {
     ctx.globalAlpha = 0.78;
     for (let index = 0; index < 12; index += 1) {
       const y = 130 + index * 86;
@@ -1049,7 +1124,7 @@ function drawDecoration(ctx, model) {
     }
   }
 
-  if (template.decoration === "pixel-botanical") {
+  if (decoration === "pixel-botanical") {
     const pixel = 18;
     ctx.globalAlpha = 0.22;
     ctx.strokeStyle = "#2f9e44";
@@ -1087,7 +1162,7 @@ function drawDecoration(ctx, model) {
     drawPixelPlant(size.width - 190, 132, 0.9);
   }
 
-  if (template.decoration === "scribble") {
+  if (decoration === "scribble") {
     ctx.globalAlpha = 0.6;
     ctx.lineWidth = 3;
     for (let index = 0; index < 7; index += 1) {
@@ -1099,7 +1174,7 @@ function drawDecoration(ctx, model) {
     }
   }
 
-  if (template.decoration === "minimal") {
+  if (decoration === "minimal") {
     ctx.globalAlpha = 1;
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -1110,7 +1185,7 @@ function drawDecoration(ctx, model) {
     ctx.stroke();
   }
 
-  if (template.decoration === "hud") {
+  if (decoration === "hud") {
     ctx.globalAlpha = 0.42;
     ctx.lineWidth = 3;
     for (let index = 0; index < 6; index += 1) {
@@ -1126,7 +1201,7 @@ function drawDecoration(ctx, model) {
     ctx.stroke();
   }
 
-  if (template.decoration === "blueprint-editorial") {
+  if (decoration === "blueprint-editorial") {
     ctx.globalAlpha = 0.32;
     ctx.strokeStyle = "rgba(239, 248, 255, 0.72)";
     ctx.lineWidth = 1.5;
@@ -1184,7 +1259,7 @@ function drawDecoration(ctx, model) {
     ctx.fillText("TEXT FIELD", size.width - 314, 168);
   }
 
-  if (template.decoration === "neon") {
+  if (decoration === "neon") {
     ctx.globalAlpha = 0.9;
     ctx.shadowColor = template.accent;
     ctx.shadowBlur = 34;
@@ -1197,7 +1272,7 @@ function drawDecoration(ctx, model) {
     ctx.fillRect(112, size.height - 250, size.width - 224, 12);
   }
 
-  if (template.decoration === "cyber-rococo") {
+  if (decoration === "cyber-rococo") {
     const glow = ctx.createRadialGradient(size.width / 2, 180, 30, size.width / 2, 180, 470);
     glow.addColorStop(0, "rgba(255, 79, 216, 0.42)");
     glow.addColorStop(0.55, "rgba(34, 211, 238, 0.16)");
@@ -1242,7 +1317,7 @@ function drawDecoration(ctx, model) {
     ctx.stroke();
   }
 
-  if (template.decoration === "holographic-foil") {
+  if (decoration === "holographic-foil") {
     const foil = ctx.createLinearGradient(82, 82, size.width - 82, size.height - 82);
     foil.addColorStop(0, "rgba(255, 255, 255, 0.82)");
     foil.addColorStop(0.16, "rgba(103, 232, 249, 0.44)");
@@ -1283,7 +1358,7 @@ function drawDecoration(ctx, model) {
     ctx.fill();
   }
 
-  if (template.decoration === "luxury") {
+  if (decoration === "luxury") {
     ctx.globalAlpha = 0.9;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -1296,7 +1371,7 @@ function drawDecoration(ctx, model) {
     ctx.fill();
   }
 
-  if (template.decoration === "constructivist-ledger") {
+  if (decoration === "constructivist-ledger") {
     ctx.globalAlpha = 1;
     ctx.fillStyle = "#181512";
     ctx.fillRect(92, 104, 250, 18);
@@ -1336,7 +1411,7 @@ function drawDecoration(ctx, model) {
     ctx.stroke();
   }
 
-  if (template.decoration === "vapor") {
+  if (decoration === "vapor") {
     ctx.globalAlpha = 0.35;
     const gradient = ctx.createLinearGradient(92, 92, size.width - 92, size.height - 92);
     gradient.addColorStop(0, "#fb7185");
@@ -1354,7 +1429,7 @@ function drawDecoration(ctx, model) {
     }
   }
 
-  if (template.decoration === "newspaper") {
+  if (decoration === "newspaper") {
     ctx.globalAlpha = 0.24;
     ctx.lineWidth = 2;
     for (let x = 270; x < size.width - 180; x += 220) {
@@ -1416,18 +1491,48 @@ function blockGap(block) {
   return 10;
 }
 
-function buildBodyItems(ctx, model) {
+function getItemHeight(item) {
+  return item.height || 0;
+}
+
+function groupHeight(group) {
+  return group.items.reduce((total, item) => total + getItemHeight(item), 0);
+}
+
+function createLineGroup(type, items, index, keepTogether = true) {
+  return {
+    type,
+    keepTogether,
+    groupId: `${type}-${index}`,
+    items,
+  };
+}
+
+function buildBodyGroups(ctx, model) {
   const { template, draft, contentWidth, lineHeight } = model;
   const blocks = parseMarkdownBlocks(draft.body);
-  const items = [];
+  const groups = [];
+  let groupIndex = 0;
 
   for (const block of blocks) {
+    if (block.type === "pageBreak") {
+      groups.push({
+        type: "pageBreak",
+        groupId: `pageBreak-${groupIndex}`,
+        items: [{ type: "pageBreak", height: 0 }],
+      });
+      groupIndex += 1;
+      continue;
+    }
+
     if (block.type === "list") {
+      const listGroups = [];
       for (const item of block.items) {
+        const listItems = [];
         ctx.font = `500 ${template.bodyFont}px system-ui, sans-serif`;
         const lines = wrapFullText(ctx, item, contentWidth - 42);
         lines.forEach((line, lineIndex) => {
-          items.push({
+          listItems.push({
             type: "line",
             blockType: "list",
             segments: parseInlineMarkdown(line),
@@ -1436,8 +1541,12 @@ function buildBodyItems(ctx, model) {
             height: lineHeight,
           });
         });
+        listGroups.push(createLineGroup("listItem", listItems, groupIndex));
+        groupIndex += 1;
       }
-      items.push({ type: "gap", height: blockGap(block) });
+      listGroups.push(createLineGroup("gap", [{ type: "gap", height: blockGap(block) }], groupIndex, false));
+      groupIndex += 1;
+      groups.push(...listGroups);
       continue;
     }
 
@@ -1447,6 +1556,7 @@ function buildBodyItems(ctx, model) {
     ctx.font = `500 ${fontSize}px system-ui, sans-serif`;
     const lines = wrapFullText(ctx, text, contentWidth - indent);
     const height = blockLineHeight(model, block);
+    const items = [];
 
     lines.forEach((line) => {
       const lineSegments = block.segments?.length === 1 ? [{ ...block.segments[0], text: line }] : parseInlineMarkdown(line);
@@ -1460,13 +1570,39 @@ function buildBodyItems(ctx, model) {
       });
     });
     items.push({ type: "gap", height: blockGap(block) });
+    groups.push(createLineGroup(block.type, items, groupIndex));
+    groupIndex += 1;
   }
 
-  while (items.at(-1)?.type === "gap") items.pop();
-  return items;
+  while (groups.at(-1)?.type === "gap" || groups.at(-1)?.items.at(-1)?.type === "gap") {
+    const group = groups.at(-1);
+    if (!group) break;
+    if (group.type === "gap") {
+      groups.pop();
+      continue;
+    }
+    if (group.items.at(-1)?.type === "gap") group.items.pop();
+    if (group.items.length === 0) groups.pop();
+    else break;
+  }
+
+  return groups;
 }
 
-function paginateItems(items, pageStarts, maxY) {
+function keepHeadingWithFollower(groups) {
+  return groups.map((group, index) => {
+    if (group.type !== "heading") return group;
+    const nextGroup = groups.slice(index + 1).find((candidate) => candidate.type !== "pageBreak" && candidate.type !== "gap");
+    if (!nextGroup) return group;
+    return {
+      ...group,
+      keepWithNextGroupId: nextGroup.groupId,
+      keepWithNextHeight: groupHeight(nextGroup),
+    };
+  });
+}
+
+function paginateGroups(groups, pageStarts, maxY) {
   const pages = [];
   let pageIndex = 0;
   let currentPage = { items: [], cursorY: pageStarts[0] };
@@ -1477,18 +1613,42 @@ function paginateItems(items, pageStarts, maxY) {
     currentPage = { items: [], cursorY: pageStarts[Math.min(pageIndex, pageStarts.length - 1)] };
   }
 
-  for (const item of items) {
-    const itemHeight = item.height || 0;
-    if (currentPage.items.length && currentPage.cursorY + itemHeight > maxY) {
-      commitPage();
-    }
-
-    if (item.type === "gap" && currentPage.items.length === 0) continue;
+  function placeItem(item, group) {
+    if (item.type === "gap" && currentPage.items.length === 0) return;
     currentPage.items.push({
       ...item,
       y: currentPage.cursorY,
+      groupId: group.groupId,
     });
-    currentPage.cursorY += itemHeight;
+    currentPage.cursorY += getItemHeight(item);
+  }
+
+  for (const group of keepHeadingWithFollower(groups)) {
+    if (group.type === "pageBreak") {
+      if (currentPage.items.length) commitPage();
+      continue;
+    }
+
+    const height = groupHeight(group);
+    const reserveHeight = height + (group.keepWithNextHeight || 0);
+    const pageStart = pageStarts[Math.min(pageIndex, pageStarts.length - 1)];
+    const fitsAsGroup = height <= maxY - pageStart;
+    const shouldMoveGroup = currentPage.items.length
+      && group.keepTogether
+      && fitsAsGroup
+      && currentPage.cursorY + reserveHeight > maxY;
+
+    if (shouldMoveGroup) {
+      commitPage();
+    }
+
+    for (const item of group.items) {
+      const itemHeight = getItemHeight(item);
+      if (currentPage.items.length && currentPage.cursorY + itemHeight > maxY) {
+        commitPage();
+      }
+      placeItem(item, group);
+    }
   }
 
   if (currentPage.items.length || pages.length === 0) pages.push(currentPage);
@@ -1501,8 +1661,8 @@ export function paginateRenderModel(ctx, model) {
   ctx.font = `800 ${model.template.titleFont}px system-ui, sans-serif`;
   const titleLines = wrapText(ctx, model.draft.title, model.contentWidth, 3);
   const firstBodyY = TITLE_Y + titleLines.length * Math.round(model.template.titleFont * 1.24) + 30;
-  const bodyItems = buildBodyItems(ctx, model);
-  const pages = paginateItems(bodyItems, [firstBodyY, CONTINUATION_BODY_Y], BODY_BOTTOM_Y);
+  const bodyGroups = buildBodyGroups(ctx, model);
+  const pages = paginateGroups(bodyGroups, [firstBodyY, CONTINUATION_BODY_Y], BODY_BOTTOM_Y);
   const pageCount = pages.length;
 
   return {
@@ -1513,6 +1673,8 @@ export function paginateRenderModel(ctx, model) {
       pageCount,
       titleLines: index === 0 ? titleLines : [],
       bodyStartY: index === 0 ? firstBodyY : CONTINUATION_BODY_Y,
+      remainingHeight: Math.max(0, BODY_BOTTOM_Y - page.cursorY),
+      remainingRatio: Math.max(0, Math.min(1, (BODY_BOTTOM_Y - page.cursorY) / (BODY_BOTTOM_Y - (index === 0 ? firstBodyY : CONTINUATION_BODY_Y)))),
       items: page.items,
     })),
   };
@@ -1549,9 +1711,11 @@ export function drawRenderPage(ctx, paginatedModel, page = paginatedModel.pages[
   ctx.fillStyle = template.bg;
   ctx.fillRect(0, 0, size.width, size.height);
 
+  ctx.globalAlpha = paginatedModel.surfaceAlpha ?? 1;
   ctx.fillStyle = template.surface;
   roundRect(ctx, 62, 62, size.width - 124, size.height - 124, 42);
   ctx.fill();
+  ctx.globalAlpha = 1;
   drawDecoration(ctx, paginatedModel);
 
   ctx.textBaseline = "top";
