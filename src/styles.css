@@ -251,29 +251,16 @@ h2 {
   display: none;
 }
 
-.works-section {
-  display: grid;
-  gap: 10px;
-  margin: 6px 0 18px;
-}
-
-.works-grid {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(156px, 190px);
-  gap: 12px;
-  overflow-x: auto;
-  padding: 2px 0 10px;
-  scrollbar-width: none;
-}
-
-.works-grid::-webkit-scrollbar {
-  display: none;
+.template-grid.works-grid-mode {
+  column-count: 4;
 }
 
 .work-card {
   position: relative;
   min-width: 0;
+  display: block;
+  margin: 0 0 26px;
+  break-inside: avoid;
 }
 
 .work-open-button {
@@ -344,6 +331,29 @@ h2 {
 .work-card:hover .work-delete-button,
 .work-delete-button:focus-visible {
   opacity: 1;
+}
+
+.works-empty {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  min-height: 180px;
+  align-content: center;
+  justify-items: start;
+  border: 1px solid rgba(17, 16, 13, 0.12);
+  background: rgba(244, 241, 234, 0.5);
+  padding: 22px;
+  column-span: all;
+}
+
+.works-empty strong {
+  font-size: 18px;
+}
+
+.works-empty span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .section-head {
@@ -730,8 +740,20 @@ h2 {
 
 .draft-action-bar {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(76px, max-content));
+  align-items: center;
+  justify-content: start;
   gap: 8px;
+}
+
+.draft-action-bar .small-button {
+  display: inline-flex;
+  width: max-content;
+  min-width: 76px;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .field {
@@ -1100,16 +1122,6 @@ button:focus-visible {
     align-items: center;
   }
 
-  .works-section {
-    margin: 4px 0 14px;
-  }
-
-  .works-grid {
-    grid-auto-columns: minmax(138px, 42vw);
-    gap: 10px;
-    padding-bottom: 8px;
-  }
-
   .drafts-strip {
     display: flex;
     overflow-x: auto;
@@ -1164,11 +1176,26 @@ button:focus-visible {
     column-gap: 10px;
   }
 
+  .template-grid.works-grid-mode {
+    column-count: 2;
+  }
+
   .template-card {
     min-height: auto;
     margin-bottom: 18px;
     border-radius: 0;
     padding: 0;
+  }
+
+  .work-card {
+    margin-bottom: 18px;
+  }
+
+  .works-empty {
+    width: 100%;
+    min-height: 150px;
+    padding: 18px;
+    column-span: all;
   }
 
   .template-thumb {
@@ -1233,7 +1260,6 @@ button:focus-visible {
     padding: 12px;
   }
 
-  .draft-action-bar,
   .export-section {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
