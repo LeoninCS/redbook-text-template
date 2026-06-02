@@ -1533,11 +1533,21 @@ function markdownText(block) {
   return block.text || "";
 }
 
+function headingFontSize(template, level = 2) {
+  const offsets = {
+    1: 18,
+    2: 10,
+    3: 4,
+  };
+  return template.bodyFont + (offsets[level] ?? offsets[3]);
+}
+
 function fontForMarkdownSegment(template, block, segment) {
   if (segment.type === "code") return `700 ${Math.max(24, template.bodyFont - 4)}px ui-monospace, SFMono-Regular, Menlo, monospace`;
-  if (block.type === "heading" || segment.type === "strong") return `800 ${block.type === "heading" ? template.bodyFont + 8 : template.bodyFont}px system-ui, sans-serif`;
-  if (segment.type === "em") return `600 italic ${template.bodyFont}px system-ui, sans-serif`;
-  return `500 ${template.bodyFont}px system-ui, sans-serif`;
+  const fontSize = block.fontSize || (block.type === "heading" ? headingFontSize(template, block.level) : template.bodyFont);
+  if (block.type === "heading" || segment.type === "strong") return `800 ${fontSize}px system-ui, sans-serif`;
+  if (segment.type === "em") return `600 italic ${fontSize}px system-ui, sans-serif`;
+  return `500 ${fontSize}px system-ui, sans-serif`;
 }
 
 function drawMarkdownLine(ctx, segments, x, y, template, block) {
@@ -1564,7 +1574,8 @@ function drawMarkdownLine(ctx, segments, x, y, template, block) {
 }
 
 function blockLineHeight(model, block) {
-  return block.type === "heading" ? Math.round(model.lineHeight * 1.12) : model.lineHeight;
+  if (block.type === "heading") return Math.round(headingFontSize(model.template, block.level) * 1.36);
+  return model.lineHeight;
 }
 
 function blockGap(block) {
@@ -1634,7 +1645,7 @@ function buildBodyGroups(ctx, model) {
 
     const text = markdownText(block);
     const indent = block.type === "quote" ? 32 : 0;
-    const fontSize = block.type === "heading" ? template.bodyFont + 8 : template.bodyFont;
+    const fontSize = block.type === "heading" ? headingFontSize(template, block.level) : template.bodyFont;
     ctx.font = `500 ${fontSize}px system-ui, sans-serif`;
     const lines = wrapFullText(ctx, text, contentWidth - indent);
     const height = blockLineHeight(model, block);
@@ -1645,6 +1656,8 @@ function buildBodyGroups(ctx, model) {
       items.push({
         type: "line",
         blockType: block.type,
+        level: block.level,
+        fontSize,
         segments: lineSegments,
         indent,
         height,
@@ -1782,7 +1795,11 @@ function drawMarkdownItems(ctx, model, page, x) {
     }
 
     ctx.globalAlpha = item.quote ? 0.92 : 1;
-    drawMarkdownLine(ctx, item.segments, x + item.indent, item.y, template, { type: item.blockType });
+    drawMarkdownLine(ctx, item.segments, x + item.indent, item.y, template, {
+      type: item.blockType,
+      level: item.level,
+      fontSize: item.fontSize,
+    });
   }
 }
 

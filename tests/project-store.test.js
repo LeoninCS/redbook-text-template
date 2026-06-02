@@ -5,9 +5,12 @@ import {
   createInitialProjectState,
   createNewDraft,
   deleteDraft,
+  deleteWork,
   duplicateDraft,
+  loadWorkAsDraft,
   migrateLegacyState,
   renameDraft,
+  saveWork,
   toggleFavoriteTemplate,
   updateActiveDraft,
 } from "../src/project-store.js";
@@ -26,6 +29,7 @@ test("creates an initial project state with one draft", () => {
   assert.equal(state.activeDraftId, state.drafts[0].id);
   assert.equal(state.drafts[0].templateId, "clean-list");
   assert.equal(state.favoriteTemplateIds.length, 0);
+  assert.deepEqual(state.works, []);
 });
 
 test("updates the active draft content and template", () => {
@@ -78,6 +82,22 @@ test("toggles favorite template ids", () => {
   assert.deepEqual(unfavorited.favoriteTemplateIds, []);
 });
 
+test("saves deletes and opens works from the work library", () => {
+  const state = createInitialProjectState("clean-list", sampleDraft, "2026-06-02T00:00:00.000Z");
+  const saved = saveWork(state, "clean-list", sampleDraft, "2026-06-02T03:00:00.000Z");
+  const opened = loadWorkAsDraft(saved, saved.works[0].id, "2026-06-02T04:00:00.000Z");
+  const deleted = deleteWork(opened, saved.works[0].id);
+
+  assert.equal(saved.works.length, 1);
+  assert.equal(saved.works[0].id.startsWith("work-"), true);
+  assert.equal(saved.works[0].draft.title, "标题");
+  assert.equal(opened.drafts.length, 2);
+  assert.equal(opened.drafts.at(-1).templateId, "clean-list");
+  assert.equal(opened.activeDraftId, opened.drafts.at(-1).id);
+  assert.equal(deleted.works.length, 0);
+  assert.equal(deleted.drafts.length, 2);
+});
+
 test("migrates legacy single draft state", () => {
   const migrated = migrateLegacyState({
     selectedTemplateId: "clean-list",
@@ -86,4 +106,5 @@ test("migrates legacy single draft state", () => {
 
   assert.equal(migrated.drafts.length, 1);
   assert.equal(migrated.drafts[0].draft.title, "标题");
+  assert.deepEqual(migrated.works, []);
 });

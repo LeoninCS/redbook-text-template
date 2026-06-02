@@ -6,6 +6,7 @@ import {
   CATEGORY_FAVORITES,
   getLibraryCategories,
   getRecentDrafts,
+  getRecentWorks,
   getVisibleTemplates,
 } from "../src/project-view.js";
 
@@ -50,4 +51,16 @@ test("sorts recent drafts by updated time", () => {
   };
 
   assert.deepEqual(getRecentDrafts(state, 2).map((draft) => draft.id), ["b", "a"]);
+});
+
+test("sorts recent works by updated time", () => {
+  const state = {
+    works: [
+      { id: "w1", name: "作品 1", updatedAt: "2026-06-01T00:00:00.000Z" },
+      { id: "w2", name: "作品 2", updatedAt: "2026-06-03T00:00:00.000Z" },
+      { id: "w3", name: "作品 3", updatedAt: "2026-06-02T00:00:00.000Z" },
+    ],
+  };
+
+  assert.deepEqual(getRecentWorks(state, 2).map((work) => work.id), ["w2", "w3"]);
 });

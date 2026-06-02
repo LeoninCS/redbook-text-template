@@ -23,12 +23,24 @@ function createDraftRecord(templateId, draft, now, name = draftName(draft)) {
   };
 }
 
+function createWorkRecord(templateId, draft, now, name = draftName(draft)) {
+  return {
+    id: createId("work", now),
+    name,
+    templateId,
+    draft: clone(draft),
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export function createInitialProjectState(templateId, draft, now = new Date().toISOString()) {
   const record = createDraftRecord(templateId, draft, now);
   return {
     version: 1,
     activeDraftId: record.id,
     drafts: [record],
+    works: [],
     favoriteTemplateIds: [],
   };
 }
@@ -45,6 +57,11 @@ function normalizeProjectState(state) {
       ...draft,
       name: draft.name || draftName(draft.draft),
       draft: clone(draft.draft),
+    })),
+    works: (state.works || []).map((work) => ({
+      ...work,
+      name: work.name || draftName(work.draft),
+      draft: clone(work.draft),
     })),
     favoriteTemplateIds: [...new Set(state.favoriteTemplateIds || [])],
   };
@@ -112,6 +129,32 @@ export function deleteDraft(state, draftId) {
     ...state,
     activeDraftId: state.activeDraftId === draftId ? drafts[0].id : state.activeDraftId,
     drafts,
+  };
+}
+
+export function saveWork(state, templateId, draft, now = new Date().toISOString()) {
+  const record = createWorkRecord(templateId, draft, now);
+  return {
+    ...state,
+    works: [record, ...(state.works || [])],
+  };
+}
+
+export function loadWorkAsDraft(state, workId, now = new Date().toISOString()) {
+  const work = (state.works || []).find((item) => item.id === workId);
+  if (!work) return state;
+  const record = createDraftRecord(work.templateId, work.draft, now, work.name);
+  return {
+    ...state,
+    activeDraftId: record.id,
+    drafts: [...state.drafts, record],
+  };
+}
+
+export function deleteWork(state, workId) {
+  return {
+    ...state,
+    works: (state.works || []).filter((work) => work.id !== workId),
   };
 }
 

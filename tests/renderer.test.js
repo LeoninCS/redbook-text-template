@@ -76,38 +76,55 @@ test("homepage chrome keeps copy to a minimum", () => {
   assert.doesNotMatch(styles, /\.template-category\s*{/);
 });
 
-test("site credit lives in a low priority footer", () => {
-  assert.match(html, /<footer class="site-credit" aria-label="作者信息">[\s\S]*by 布洛克琴[\s\S]*GitHub[\s\S]*<\/footer>/);
-  assert.doesNotMatch(html, /<nav class="site-nav"[\s\S]*by 布洛克琴[\s\S]*<\/nav>/);
-  assert.doesNotMatch(html, /<header class="editor-topbar"[\s\S]*by 布洛克琴[\s\S]*<\/header>/);
-  assert.match(styles, /\.site-credit\s*{[\s\S]*justify-content:\s*flex-end;/);
-  assert.match(styles, /\.site-credit\s*{[\s\S]*font-size:\s*12px;/);
+test("site nav shows author with a GitHub icon link", () => {
+  assert.match(html, /<a class="author-link" href="https:\/\/github\.com\/LeoninCS\/redbook-text-template"[\s\S]*aria-label="布洛克琴 GitHub"/);
+  assert.match(html, /<span>布洛克琴<\/span>/);
+  assert.match(html, /class="github-icon"/);
+  assert.doesNotMatch(html, /<footer class="site-credit"/);
+  assert.doesNotMatch(styles, /\.site-nav::after\s*{/);
+  assert.match(styles, /\.author-link\s*{[\s\S]*justify-self:\s*end;/);
+  assert.match(styles, /\.github-icon\s*{[\s\S]*width:\s*18px;/);
 });
 
-test("homepage includes reference ink illustration motifs", () => {
-  assert.match(html, /class="hero-art"/);
+test("homepage removes the top decorative illustration strip", () => {
+  assert.doesNotMatch(html, /class="hero-art"/);
+  assert.doesNotMatch(html, /class="ink-panel/);
+  assert.doesNotMatch(styles, /\.hero-art\s*{/);
+  assert.doesNotMatch(styles, /\.ink-panel/);
+  assert.doesNotMatch(styles, /\.hero::before\s*{/);
+  assert.doesNotMatch(styles, /\.hero::after\s*{/);
   assert.match(styles, /--ink-silhouette:\s*rgba\(17, 16, 13, 0\.92\);/);
   assert.match(styles, /--gallery-paper:\s*#f4f1ea;/);
   assert.match(styles, /--charcoal:\s*#11100d;/);
-  assert.match(styles, /\.hero-art\s*{/);
-  assert.match(styles, /\.ink-panel-figure::before\s*{/);
-  assert.match(styles, /\.ink-panel-landscape::before\s*{/);
-  assert.match(styles, /\.ink-panel-tea::before\s*{/);
-  assert.match(styles, /\.ink-panel-tea::after\s*{/);
-  assert.match(styles, /\.template-thumb \.ink-motif-tea\s*{/);
 });
 
-test("template thumbnails use distinct ink scene compositions", () => {
-  assert.match(appSource, /function getInkScene\(template, index = 0\)/);
-  assert.match(appSource, /thumb\.dataset\.scene = getInkScene\(template, index\);/);
-  assert.match(appSource, /visibleTemplates\.forEach\(\(template, index\) =>/);
-  assert.match(appSource, /thumb\.dataset\.size = getFlowSize\(template\);/);
-  assert.match(styles, /\.template-thumb\[data-scene="figure"\]\s*{/);
-  assert.match(styles, /\.template-thumb\[data-scene="landscape"\]\s*{/);
-  assert.match(styles, /\.template-thumb\[data-scene="tea"\]\s*{/);
-  assert.match(styles, /\.template-thumb\[data-scene="tree"\]\s*{/);
-  assert.match(styles, /\.template-thumb\[data-scene="house"\]\s*{/);
-  assert.match(styles, /\.template-thumb\[data-scene="corridor"\]\s*{/);
+test("template thumbnails render from the same canvas path as export output", () => {
+  assert.match(appSource, /const thumbnailDraft = \{/);
+  assert.match(appSource, /const thumbnailModel = buildRenderModel\(template\.id, thumbnailDraft\);/);
+  assert.match(appSource, /const thumbnailPage = paginateRenderModel\(/);
+  assert.match(appSource, /function renderCanvasThumbnail\(paginated, page = paginated\.pages\[0\]\)/);
+  assert.match(appSource, /drawRenderPage\(ctx, paginated, page\);/);
+  assert.match(appSource, /thumb\.append\(renderCanvasThumbnail\(thumbnailPage\)\);/);
+  assert.match(appSource, /thumb\.append\(renderCanvasThumbnail\(workPage\)\);/);
+  assert.doesNotMatch(appSource, /function getInkScene/);
+  assert.doesNotMatch(appSource, /ink-motif/);
+  assert.doesNotMatch(styles, /\.template-thumb \.ink-motif/);
+  assert.doesNotMatch(styles, /\.template-thumb\[data-scene=/);
+});
+
+test("homepage and editor include a local works library", () => {
+  assert.match(html, /<section class="works-section" aria-labelledby="works-title">/);
+  assert.match(html, /<h2 id="works-title">作品库<\/h2>/);
+  assert.match(html, /<div class="works-grid" id="worksGrid" aria-label="作品库"><\/div>/);
+  assert.match(html, /<button class="secondary-button small-button" id="saveWorkBtn" type="button">保存作品<\/button>/);
+  assert.match(appSource, /const worksGrid = document\.querySelector\("#worksGrid"\);/);
+  assert.match(appSource, /function renderWorks\(\)/);
+  assert.match(appSource, /function saveCurrentWork\(\)/);
+  assert.match(appSource, /function openWork\(workId\)/);
+  assert.match(appSource, /function deleteSavedWork\(workId\)/);
+  assert.match(styles, /\.works-section\s*{/);
+  assert.match(styles, /\.works-grid\s*{/);
+  assert.match(styles, /\.work-card\s*{/);
 });
 
 test("homepage uses a redbook style waterfall feed", () => {
@@ -116,7 +133,7 @@ test("homepage uses a redbook style waterfall feed", () => {
   assert.match(styles, /\.category-filter\s*{[\s\S]*display:\s*flex;/);
   assert.match(styles, /\.template-grid\s*{[\s\S]*column-count:\s*4;/);
   assert.match(styles, /\.template-card\s*{[\s\S]*break-inside:\s*avoid;/);
-  assert.match(styles, /\.template-thumb\[data-size="tall"\]\s*{/);
+  assert.doesNotMatch(appSource, /thumb\.dataset\.size/);
   assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.template-grid\s*{[\s\S]*column-count:\s*2;/);
 });
 
@@ -124,8 +141,7 @@ test("homepage keeps the feed header compact", () => {
   assert.match(styles, /\.hero\s*{[\s\S]*min-height:\s*96px;/);
   assert.match(styles, /\.hero\s*{[\s\S]*border:\s*0;/);
   assert.match(styles, /\.hero\s*{[\s\S]*box-shadow:\s*none;/);
-  assert.match(styles, /\.hero-art\s*{[\s\S]*width:\s*min\(360px, 36%\);/);
-  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.hero-art\s*{[\s\S]*display:\s*none;/);
+  assert.doesNotMatch(styles, /width:\s*min\(360px, 36%\);/);
 });
 
 test("homepage uses gallery chrome while thumbnails keep each template effect", () => {
@@ -134,13 +150,12 @@ test("homepage uses gallery chrome while thumbnails keep each template effect", 
   assert.match(styles, /--brush-wash:\s*rgba\(17, 16, 13, 0\.18\);/);
   assert.match(styles, /\.template-card\s*{[\s\S]*border-radius:\s*0;/);
   assert.match(styles, /\.template-card\s*{[\s\S]*background:\s*transparent;/);
-  assert.match(styles, /\.template-thumb\s*{[\s\S]*aspect-ratio:\s*2 \/ 3;/);
+  assert.match(styles, /\.template-thumb\s*{[\s\S]*aspect-ratio:\s*3 \/ 4;/);
   assert.match(styles, /\.template-thumb\s*{[\s\S]*border-radius:\s*1px;/);
-  assert.match(styles, /\.template-thumb::before\s*{[\s\S]*repeating-linear-gradient\(0deg, var\(--paper-grain\)/);
-  assert.match(styles, /\.template-thumb\s*{[\s\S]*var\(--template-bg\)/);
-  assert.match(styles, /\.template-thumb\[data-template="riso-zine"\]::after\s*{[\s\S]*#ff4f87/);
-  assert.match(styles, /\.template-thumb\[data-template="blueprint-editorial"\]::after\s*{[\s\S]*rgba\(239, 248, 255/);
-  assert.match(styles, /\.template-thumb\[data-template="ink-negative-space"\]::after\s*{[\s\S]*var\(--charcoal\)/);
+  assert.match(styles, /\.template-thumb-canvas\s*{/);
+  assert.doesNotMatch(styles, /\.template-thumb-card\s*{/);
+  assert.doesNotMatch(styles, /\.template-preview-title\s*{/);
+  assert.doesNotMatch(styles, /\.template-preview-body\s*{/);
   assert.match(styles, /\.template-title\s*{/);
   assert.match(styles, /\.favorite-button\s*{[\s\S]*opacity:\s*0;/);
 });
@@ -260,8 +275,8 @@ test("includes a monochrome negative-space ink template for the new gallery styl
   assert.equal(template?.decoration.kind, "ink-negative-space");
   assert.equal(template?.tokens.color.background, "#d8d4cc");
   assert.equal(template?.tokens.color.surface, "#f4f1ea");
-  assert.match(styles, /\.preview-card\[data-template="ink-negative-space"\]::before\s*{/);
   assert.match(rendererSource, /decoration === "ink-negative-space"/);
+  assert.match(rendererSource, /const birds = \[/);
 });
 
 test("parses markdown blocks for preview rendering", () => {
@@ -278,10 +293,16 @@ test("styles include a dedicated mobile layout", () => {
   assert.match(styles, /@media \(max-width: 640px\)/);
   assert.match(styles, /\.library-layout\s*{\s*display: block;/);
   assert.match(styles, /\.category-filter\s*{\s*display: flex;/);
-  assert.match(styles, /\.preview-page-shell\s*{\s*width: min\(310px, 100%\);/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.category-filter\s*{[\s\S]*justify-content: space-between;/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.category-button\s*{[\s\S]*padding: 0 7px;/);
+  assert.match(styles, /\.preview-page-shell\s*{\s*width: min\(320px, 100%\);/);
   assert.match(styles, /\.preview-panel\s*{\s*order: -1;/);
-  assert.match(styles, /h1\s*{\s*font-size: clamp\(27px, 8vw, 34px\);/);
+  assert.match(styles, /h1\s*{\s*font-size: clamp\(24px, 7vw, 30px\);/);
   assert.match(styles, /\.template-grid\s*{\s*column-count: 2;/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.editor-topbar\s*{[\s\S]*padding: 8px 10px;/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.control-grid\s*{\s*grid-template-columns: 1fr;/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.editor-section-body\s*{[\s\S]*gap: 16px;/);
+  assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.phone-frame\s*{[\s\S]*aspect-ratio: 3 \/ 4;/);
 });
 
 test("styles include the ink wash paper UI language", () => {
@@ -290,11 +311,9 @@ test("styles include the ink wash paper UI language", () => {
   assert.match(styles, /--gallery-paper:\s*#f4f1ea;/);
   assert.match(styles, /body::before\s*{/);
   assert.match(styles, /body::after\s*{/);
-  assert.match(styles, /\.site-nav::after\s*{/);
-  assert.match(styles, /\.hero::before\s*{/);
-  assert.match(styles, /\.template-thumb\s*{[\s\S]*var\(--template-bg\)/);
-  assert.match(styles, /\.template-thumb::before\s*{[\s\S]*var\(--template-surface\)/);
-  assert.match(styles, /\.template-thumb\[data-template="ink-negative-space"\]\[data-scene="tree"\]::after\s*{[\s\S]*linear-gradient\(var\(--charcoal\), var\(--charcoal\)\)/);
+  assert.match(styles, /\.author-link\s*{[\s\S]*color:\s*rgba\(17, 16, 13, 0\.64\);/);
+  assert.match(styles, /\.template-thumb-canvas\s*{[\s\S]*display:\s*block;/);
+  assert.match(styles, /\.preview-canvas\s*{[\s\S]*display:\s*block;/);
 });
 
 test("paginates long markdown drafts into bounded render pages", () => {
@@ -491,6 +510,38 @@ test("applies draft style controls to render model", () => {
   assert.ok(model.lineHeight > Math.round(model.template.bodyFont * 1.62));
   assert.ok(model.padding < 92);
   assert.equal(model.surfaceAlpha, 0.35);
+});
+
+test("keeps markdown heading levels with distinct render sizes", () => {
+  const model = buildRenderModel("clean-list", {
+    title: "标题",
+    body: "# 一级标题\n正文\n## 二级标题\n正文\n### 三级标题\n正文",
+    signature: "作者",
+  });
+  const paginated = paginateRenderModel(createMeasureContext(), model);
+  const headings = paginated.pages
+    .flatMap((page) => page.items)
+    .filter((item) => item.type === "line" && item.blockType === "heading");
+
+  assert.deepEqual(headings.map((item) => item.level), [1, 2, 3]);
+  assert.ok(headings[0].fontSize > headings[1].fontSize);
+  assert.ok(headings[1].fontSize > headings[2].fontSize);
+  assert.ok(headings[2].fontSize > model.template.bodyFont);
+});
+
+test("editor preview renders from the same canvas path as export output", () => {
+  assert.match(appSource, /function renderPreviewCanvas\(paginated, page\)/);
+  assert.match(appSource, /const canvas = createCanvasForPage\(paginated, page, 1\);/);
+  assert.match(appSource, /canvas\.className = "preview-canvas";/);
+  assert.match(appSource, /phoneScreen\.append\(renderPreviewCanvas\(paginated, page\)\);/);
+  assert.doesNotMatch(appSource, /function applyPreviewTheme/);
+  assert.doesNotMatch(appSource, /function renderPreviewLine/);
+  assert.doesNotMatch(appSource, /previewCard/);
+  assert.match(styles, /\.phone-frame\s*{[\s\S]*padding:\s*0;/);
+  assert.match(styles, /\.phone-screen\s*{[\s\S]*box-shadow:\s*0 0 0 10px/);
+  assert.match(styles, /\.preview-canvas\s*{[\s\S]*width:\s*100%;/);
+  assert.match(styles, /\.preview-canvas\s*{[\s\S]*aspect-ratio:\s*3 \/ 4;/);
+  assert.doesNotMatch(styles, /\.preview-card/);
 });
 
 test("applies output tone mode to render model colors", () => {
