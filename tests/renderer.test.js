@@ -151,6 +151,9 @@ test("template cards reveal their own create action on hover", () => {
   assert.match(styles, /\.template-create-button\s*{/);
   assert.match(styles, /\.template-create-button\s*{[\s\S]*left:\s*50%;/);
   assert.match(styles, /\.template-create-button\s*{[\s\S]*top:\s*50%;/);
+  assert.match(styles, /\.template-create-button\s*{[\s\S]*min-height:\s*46px;/);
+  assert.match(styles, /\.template-create-button\s*{[\s\S]*padding:\s*0 28px;/);
+  assert.match(styles, /\.template-create-button\s*{[\s\S]*font-size:\s*16px;/);
   assert.match(styles, /\.template-create-button\s*{[\s\S]*transform:\s*translate\(-50%, -50%\) scale\(0\.96\);/);
   assert.match(styles, /\.template-card:hover \.template-create-button/);
   assert.match(styles, /\.template-card:focus-within \.template-create-button/);
