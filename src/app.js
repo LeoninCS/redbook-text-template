@@ -15,25 +15,22 @@ import {
 import { buildAiSuggestions } from "./assistant.js";
 import { autoTypeset } from "./auto-typeset.js";
 import {
-  createNewDraft,
-  deleteDraft,
+  createWork,
   deleteWork,
-  duplicateDraft,
   getActiveDraft,
+  getActiveWork,
   loadWorkAsDraft,
   loadProjectState,
-  renameDraft,
   saveProjectState,
-  saveWork,
   toggleFavoriteTemplate,
   updateActiveDraft,
+  updateActiveWork,
 } from "./project-store.js";
 import {
   CATEGORY_ALL,
   CATEGORY_FAVORITES,
   CATEGORY_WORKS,
   getLibraryCategories,
-  getRecentDrafts,
   getRecentWorks,
   getVisibleTemplates,
 } from "./project-view.js";
@@ -61,20 +58,15 @@ const libraryView = document.querySelector("#libraryView");
 const editorView = document.querySelector("#editorView");
 const templateGrid = document.querySelector("#templateGrid");
 const categoryFilter = document.querySelector("#categoryFilter");
-const draftsStrip = document.querySelector("#draftsStrip");
 const templateSelect = document.querySelector("#templateSelect");
 const titleInput = document.querySelector("#titleInput");
 const bodyInput = document.querySelector("#bodyInput");
 const signatureInput = document.querySelector("#signatureInput");
 const statusText = document.querySelector("#statusText");
 const backBtn = document.querySelector("#backBtn");
-const newDraftFromLibraryBtn = document.querySelector("#newDraftFromLibraryBtn");
-const newDraftBtn = document.querySelector("#newDraftBtn");
-const duplicateDraftBtn = document.querySelector("#duplicateDraftBtn");
-const renameDraftBtn = document.querySelector("#renameDraftBtn");
+const createWorkBtn = document.querySelector("#createWorkBtn");
 const autoTypesetBtn = document.querySelector("#autoTypesetBtn");
-const saveWorkBtn = document.querySelector("#saveWorkBtn");
-const deleteDraftBtn = document.querySelector("#deleteDraftBtn");
+const deleteWorkBtn = document.querySelector("#deleteWorkBtn");
 const exportPngBtn = document.querySelector("#exportPngBtn");
 const exportPdfBtn = document.querySelector("#exportPdfBtn");
 const pageRangeInput = document.querySelector("#pageRangeInput");
@@ -101,16 +93,25 @@ function cloneDraft(value) {
 }
 
 function hydrateActiveDraft() {
+  const activeWork = getActiveWork(projectState);
   const activeDraft = getActiveDraft(projectState);
-  selectedTemplateId = getTemplate(activeDraft.templateId).id;
-  draft = normalizeDraft(activeDraft.draft);
+  const activeRecord = activeWork || activeDraft;
+  selectedTemplateId = getTemplate(activeRecord.templateId).id;
+  draft = normalizeDraft(activeRecord.draft);
 }
 
 function persistActiveDraft(now = new Date().toISOString()) {
-  projectState = updateActiveDraft(projectState, {
-    templateId: selectedTemplateId,
-    draft,
-  }, now);
+  if (getActiveWork(projectState)) {
+    projectState = updateActiveWork(projectState, {
+      templateId: selectedTemplateId,
+      draft,
+    }, now);
+  } else {
+    projectState = updateActiveDraft(projectState, {
+      templateId: selectedTemplateId,
+      draft,
+    }, now);
+  }
   saveProjectState(localStorage, projectState);
 }
 
@@ -234,28 +235,14 @@ function renderLibrary() {
     });
     card.append(favoriteBtn);
 
-    card.addEventListener("click", () => openEditor(template.id));
+    card.addEventListener("click", () => selectTemplateForCreation(template.id));
     card.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
-        openEditor(template.id);
+        selectTemplateForCreation(template.id);
       }
     });
     templateGrid.append(card);
-  });
-}
-
-function renderDrafts() {
-  draftsStrip.innerHTML = "";
-  getRecentDrafts(projectState, 6).forEach((draftRecord) => {
-    const card = document.createElement("button");
-    card.type = "button";
-    card.className = draftRecord.id === projectState.activeDraftId ? "draft-card active" : "draft-card";
-    const draftName = document.createElement("strong");
-    draftName.textContent = draftRecord.name;
-    card.append(draftName);
-    card.addEventListener("click", () => openDraft(draftRecord.id));
-    draftsStrip.append(card);
   });
 }
 
@@ -267,12 +254,12 @@ function renderWorksLibrary() {
     const title = document.createElement("strong");
     title.textContent = "还没有保存的作品";
     const text = document.createElement("span");
-    text.textContent = "编辑模板后点保存作品，会出现在这里。";
+    text.textContent = "选择模板后新建作品，会出现在这里。";
     const button = document.createElement("button");
     button.type = "button";
     button.className = "secondary-button small-button";
     button.textContent = "新建作品";
-    button.addEventListener("click", () => createDraft());
+    button.addEventListener("click", createWorkFromSelectedTemplate);
     empty.append(title, text, button);
     templateGrid.append(empty);
     return;
@@ -394,7 +381,6 @@ function renderPreview() {
   });
   statusText.textContent = `${paginated.template.name} · 已自动分页 ${paginated.pages.length} 页`;
   persistActiveDraft();
-  renderDrafts();
   renderExportSummary(paginated);
 }
 
@@ -413,22 +399,22 @@ function renderExportSummary(paginated = createPaginatedModel()) {
   return summary;
 }
 
-function openEditor(templateId = selectedTemplateId) {
+function selectTemplateForCreation(templateId) {
   selectedTemplateId = templateId;
-  libraryView.hidden = true;
-  editorView.hidden = false;
   templateSelect.value = selectedTemplateId;
-  setInputs();
-  renderPreview();
+  statusText.textContent = `${getTemplate(templateId).name} · 点新建作品开始编辑`;
 }
 
-function openDraft(draftId) {
-  persistActiveDraft();
-  projectState = { ...projectState, activeDraftId: draftId };
+function openWorkEditor(workId) {
+  projectState = {
+    ...projectState,
+    activeWorkId: workId,
+  };
   hydrateActiveDraft();
   saveProjectState(localStorage, projectState);
   libraryView.hidden = true;
   editorView.hidden = false;
+  templateSelect.value = selectedTemplateId;
   setInputs();
   renderPreview();
 }
@@ -442,59 +428,26 @@ function openWork(workId) {
   editorView.hidden = false;
   setInputs();
   renderPreview();
-  statusText.textContent = "作品已打开为草稿。";
+  statusText.textContent = "作品已打开。";
 }
 
 function openLibrary() {
   persistActiveDraft();
   renderCategories();
   renderLibrary();
-  renderDrafts();
   editorView.hidden = true;
   libraryView.hidden = false;
 }
 
-function createDraft(templateId = selectedTemplateId) {
-  updateDraftFromInputs();
+function createWorkFromSelectedTemplate() {
   persistActiveDraft();
-  projectState = createNewDraft(projectState, templateId, defaultDraft);
-  hydrateActiveDraft();
-  saveProjectState(localStorage, projectState);
-  setInputs();
-  renderPreview();
-  libraryView.hidden = true;
-  editorView.hidden = false;
-}
-
-function duplicateCurrentDraft() {
-  updateDraftFromInputs();
-  persistActiveDraft();
-  projectState = duplicateDraft(projectState);
-  hydrateActiveDraft();
-  saveProjectState(localStorage, projectState);
-  setInputs();
-  renderPreview();
-}
-
-function renameCurrentDraft() {
-  const activeDraft = getActiveDraft(projectState);
-  const name = window.prompt("作品名称", activeDraft.name);
-  if (name === null) return;
-  projectState = renameDraft(projectState, activeDraft.id, name);
-  saveProjectState(localStorage, projectState);
-  renderDrafts();
-  statusText.textContent = "作品名称已更新。";
-}
-
-function saveCurrentWork() {
-  updateDraftFromInputs();
-  persistActiveDraft();
-  projectState = saveWork(projectState, selectedTemplateId, draft);
-  saveProjectState(localStorage, projectState);
+  const result = createWork(projectState, selectedTemplateId, defaultDraft);
+  projectState = result;
   selectedCategory = CATEGORY_WORKS;
   renderCategories();
   renderLibrary();
-  statusText.textContent = "作品已保存。";
+  openWorkEditor(result.activeWorkId);
+  statusText.textContent = "作品已新建。";
 }
 
 function applyAutoTypeset() {
@@ -519,28 +472,22 @@ function deleteSavedWork(workId) {
   statusText.textContent = "作品已删除。";
 }
 
-function deleteCurrentDraft() {
-  const activeDraft = getActiveDraft(projectState);
-  const confirmed = window.confirm(`删除作品「${activeDraft.name}」？`);
+function deleteCurrentWork() {
+  const activeWork = getActiveWork(projectState);
+  if (!activeWork) return;
+  const confirmed = window.confirm(`删除作品「${activeWork.name}」？`);
   if (!confirmed) return;
-  if (projectState.drafts.length <= 1) {
-    projectState = updateActiveDraft(projectState, {
-      name: defaultDraft.title,
-      templateId: templates[0].id,
-      draft: defaultDraft,
-    });
-    hydrateActiveDraft();
-    saveProjectState(localStorage, projectState);
-    setInputs();
-    renderPreview();
-    statusText.textContent = "当前作品已重置。";
-    return;
-  }
-  projectState = deleteDraft(projectState, activeDraft.id);
+  projectState = {
+    ...deleteWork(projectState, activeWork.id),
+    activeWorkId: null,
+  };
   hydrateActiveDraft();
   saveProjectState(localStorage, projectState);
-  setInputs();
-  renderPreview();
+  selectedCategory = CATEGORY_WORKS;
+  renderCategories();
+  renderLibrary();
+  editorView.hidden = true;
+  libraryView.hidden = false;
   statusText.textContent = "作品已删除。";
 }
 
@@ -727,13 +674,9 @@ function bindEvents() {
   });
 
   backBtn.addEventListener("click", openLibrary);
-  newDraftFromLibraryBtn.addEventListener("click", () => createDraft());
-  newDraftBtn.addEventListener("click", () => createDraft());
-  duplicateDraftBtn.addEventListener("click", duplicateCurrentDraft);
-  renameDraftBtn.addEventListener("click", renameCurrentDraft);
+  createWorkBtn.addEventListener("click", createWorkFromSelectedTemplate);
   autoTypesetBtn.addEventListener("click", applyAutoTypeset);
-  saveWorkBtn.addEventListener("click", saveCurrentWork);
-  deleteDraftBtn.addEventListener("click", deleteCurrentDraft);
+  deleteWorkBtn.addEventListener("click", deleteCurrentWork);
   exportPngBtn.addEventListener("click", exportPng);
   exportPdfBtn.addEventListener("click", exportPdf);
   aiSuggestBtn.addEventListener("click", renderAiSuggestions);
@@ -743,7 +686,6 @@ loadState();
 renderTemplateSelect();
 renderCategories();
 renderLibrary();
-renderDrafts();
 setInputs();
 renderPreview();
 openLibrary();

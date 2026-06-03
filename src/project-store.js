@@ -39,6 +39,7 @@ export function createInitialProjectState(templateId, draft, now = new Date().to
   return {
     version: 1,
     activeDraftId: record.id,
+    activeWorkId: null,
     drafts: [record],
     works: [],
     favoriteTemplateIds: [],
@@ -53,6 +54,7 @@ function normalizeProjectState(state) {
   return {
     version: 1,
     activeDraftId,
+    activeWorkId: (state.works || []).some((work) => work.id === state.activeWorkId) ? state.activeWorkId : null,
     drafts: state.drafts.map((draft) => ({
       ...draft,
       name: draft.name || draftName(draft.draft),
@@ -136,18 +138,48 @@ export function saveWork(state, templateId, draft, now = new Date().toISOString(
   const record = createWorkRecord(templateId, draft, now);
   return {
     ...state,
+    activeWorkId: record.id,
     works: [record, ...(state.works || [])],
   };
 }
 
-export function loadWorkAsDraft(state, workId, now = new Date().toISOString()) {
-  const work = (state.works || []).find((item) => item.id === workId);
-  if (!work) return state;
-  const record = createDraftRecord(work.templateId, work.draft, now, work.name);
+export function createWork(state, templateId, draft, now = new Date().toISOString()) {
+  const record = createWorkRecord(templateId, draft, now);
   return {
     ...state,
-    activeDraftId: record.id,
-    drafts: [...state.drafts, record],
+    activeWorkId: record.id,
+    works: [record, ...(state.works || [])],
+  };
+}
+
+export function getActiveWork(state) {
+  return (state.works || []).find((work) => work.id === state.activeWorkId) || null;
+}
+
+export function updateActiveWork(state, updates, now = new Date().toISOString()) {
+  const activeWork = getActiveWork(state);
+  if (!activeWork) return state;
+  const nextDraft = updates.draft ? clone(updates.draft) : activeWork.draft;
+  return {
+    ...state,
+    works: (state.works || []).map((work) => work.id === activeWork.id
+      ? {
+        ...work,
+        name: updates.name ?? draftName(nextDraft),
+        templateId: updates.templateId ?? work.templateId,
+        draft: nextDraft,
+        updatedAt: now,
+      }
+      : work),
+  };
+}
+
+export function loadWorkAsDraft(state, workId) {
+  const work = (state.works || []).find((item) => item.id === workId);
+  if (!work) return state;
+  return {
+    ...state,
+    activeWorkId: work.id,
   };
 }
 
