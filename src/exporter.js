@@ -145,6 +145,10 @@ function dataUrlToBytes(dataUrl) {
   return Uint8Array.from(atob(base64), (char) => char.charCodeAt(0));
 }
 
+function dataUrlMimeType(dataUrl) {
+  return String(dataUrl).match(/^data:([^;,]+)/)?.[1] || "";
+}
+
 function escapePdfText(text) {
   return String(text).replace(/[\\()]/g, "\\$&");
 }
@@ -154,8 +158,12 @@ export function createPdfBlob(imageDataUrls, size = OUTPUT_SIZE) {
   const objects = [];
 
   function addObject(content) {
-    objects.push(content);
+    objects.push(Array.isArray(content) ? content : [content]);
     return objects.length;
+  }
+
+  function encodePart(part) {
+    return typeof part === "string" ? encoder.encode(part) : part;
   }
 
   const pageRefs = [];
@@ -164,25 +172,36 @@ export function createPdfBlob(imageDataUrls, size = OUTPUT_SIZE) {
   addObject("");
 
   imageDataUrls.forEach((dataUrl, index) => {
+    const mimeType = dataUrlMimeType(dataUrl);
+    if (mimeType !== "image/jpeg") {
+      throw new Error(`PDF export supports image/jpeg data URLs, received ${mimeType || "unknown"}.`);
+    }
     const imageBytes = dataUrlToBytes(dataUrl);
-    const imageText = Array.from(imageBytes, (byte) => String.fromCharCode(byte)).join("");
-    const imageRef = addObject(`<< /Type /XObject /Subtype /Image /Width ${size.width} /Height ${size.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBytes.length} >>\nstream\n${imageText}\nendstream`);
+    const imageRef = addObject([
+      `<< /Type /XObject /Subtype /Image /Width ${size.width} /Height ${size.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${imageBytes.length} >>\nstream\n`,
+      imageBytes,
+      "\nendstream",
+    ]);
     const content = `q\n${size.width} 0 0 ${size.height} 0 0 cm\n/Im${index + 1} Do\nQ\n`;
     const contentRef = addObject(`<< /Length ${content.length} >>\nstream\n${content}endstream`);
     const pageRef = addObject(`<< /Type /Page /Parent ${pagesRef} 0 R /MediaBox [0 0 ${size.width} ${size.height}] /Resources << /XObject << /Im${index + 1} ${imageRef} 0 R >> >> /Contents ${contentRef} 0 R >>`);
     pageRefs.push(pageRef);
   });
 
-  objects[pagesRef - 1] = `<< /Type /Pages /Kids [${pageRefs.map((ref) => `${ref} 0 R`).join(" ")}] /Count ${pageRefs.length} >>`;
+  objects[pagesRef - 1] = [`<< /Type /Pages /Kids [${pageRefs.map((ref) => `${ref} 0 R`).join(" ")}] /Count ${pageRefs.length} >>`];
 
   const chunks = [encoder.encode("%PDF-1.4\n")];
   const offsets = [0];
   let position = chunks[0].length;
   objects.forEach((object, index) => {
     offsets.push(position);
-    const bytes = encoder.encode(`${index + 1} 0 obj\n${object}\nendobj\n`);
-    chunks.push(bytes);
-    position += bytes.length;
+    const objectChunks = [
+      encoder.encode(`${index + 1} 0 obj\n`),
+      ...object.map(encodePart),
+      encoder.encode("\nendobj\n"),
+    ];
+    chunks.push(...objectChunks);
+    position += objectChunks.reduce((total, chunk) => total + chunk.length, 0);
   });
 
   const xrefOffset = position;

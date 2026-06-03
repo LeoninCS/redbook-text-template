@@ -61,3 +61,15 @@ test("creates a pdf blob with expected signature and page count", async () => {
   assert.equal(text.startsWith("%PDF-1.4"), true);
   assert.match(text, /\/Count 2/);
 });
+
+test("keeps jpeg image bytes intact inside pdf streams", async () => {
+  const imageBytes = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0xff, 0xd9]);
+  const base64 = btoa(String.fromCharCode(...imageBytes));
+  const blob = createPdfBlob([`data:image/jpeg;base64,${base64}`], { width: 2, height: 2 });
+  const pdfBytes = new Uint8Array(await blob.arrayBuffer());
+  const marker = new TextEncoder().encode("stream\n");
+  const start = pdfBytes.findIndex((_, index) => marker.every((byte, offset) => pdfBytes[index + offset] === byte)) + marker.length;
+  const streamBytes = pdfBytes.slice(start, start + imageBytes.length);
+
+  assert.deepEqual([...streamBytes], [...imageBytes]);
+});
