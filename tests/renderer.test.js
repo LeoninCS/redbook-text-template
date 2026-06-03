@@ -149,8 +149,22 @@ test("template cards reveal their own create action on hover", () => {
   assert.match(appSource, /createButton\.addEventListener\("click", \(event\) => \{/);
   assert.match(appSource, /selectTemplateForCreation\(template\.id\);[\s\S]*createWorkFromSelectedTemplate\(\);/);
   assert.match(styles, /\.template-create-button\s*{/);
+  assert.match(styles, /\.template-create-button\s*{[\s\S]*left:\s*50%;/);
+  assert.match(styles, /\.template-create-button\s*{[\s\S]*top:\s*50%;/);
+  assert.match(styles, /\.template-create-button\s*{[\s\S]*transform:\s*translate\(-50%, -50%\) scale\(0\.96\);/);
   assert.match(styles, /\.template-card:hover \.template-create-button/);
   assert.match(styles, /\.template-card:focus-within \.template-create-button/);
+});
+
+test("favorite and normal template states have distinct visual treatment", () => {
+  assert.match(appSource, /const isFavorite = projectState\.favoriteTemplateIds\.includes\(template\.id\);/);
+  assert.match(appSource, /favoriteBtn\.className = isFavorite/);
+  assert.match(appSource, /favoriteBtn\.setAttribute\("aria-label", `\$\{isFavorite \? "取消收藏" : "收藏"\} \$\{template\.name\}`\);/);
+  assert.match(appSource, /favoriteBtn\.textContent = isFavorite \? "★" : "☆";/);
+  assert.match(styles, /\.favorite-button\s*{[\s\S]*opacity:\s*0;/);
+  assert.match(styles, /\.favorite-button\.active\s*{[\s\S]*opacity:\s*1;/);
+  assert.match(styles, /\.favorite-button\.active\s*{[\s\S]*background:\s*var\(--charcoal\);/);
+  assert.match(styles, /\.favorite-button\.active\s*{[\s\S]*color:\s*var\(--paper\);/);
 });
 
 test("editor exposes local auto typesetting", () => {
@@ -204,7 +218,6 @@ test("homepage uses gallery chrome while thumbnails keep each template effect", 
   assert.doesNotMatch(styles, /\.template-preview-title\s*{/);
   assert.doesNotMatch(styles, /\.template-preview-body\s*{/);
   assert.match(styles, /\.template-title\s*{/);
-  assert.match(styles, /\.favorite-button\s*{[\s\S]*opacity:\s*0;/);
 });
 
 test("provides at least thirty-two distinct templates", () => {

@@ -218,13 +218,12 @@ function renderLibrary() {
     card.tabIndex = 0;
     card.append(renderTemplateThumbnail(template));
 
+    const isFavorite = projectState.favoriteTemplateIds.includes(template.id);
     const favoriteBtn = document.createElement("button");
     favoriteBtn.type = "button";
-    favoriteBtn.className = projectState.favoriteTemplateIds.includes(template.id)
-      ? "favorite-button active"
-      : "favorite-button";
-    favoriteBtn.setAttribute("aria-label", `收藏 ${template.name}`);
-    favoriteBtn.textContent = "★";
+    favoriteBtn.className = isFavorite ? "favorite-button active" : "favorite-button";
+    favoriteBtn.setAttribute("aria-label", `${isFavorite ? "取消收藏" : "收藏"} ${template.name}`);
+    favoriteBtn.textContent = isFavorite ? "★" : "☆";
     favoriteBtn.addEventListener("click", (event) => {
       event.stopPropagation();
       projectState = toggleFavoriteTemplate(projectState, template.id);
