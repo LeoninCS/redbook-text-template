@@ -502,6 +502,7 @@ h2 {
 
 .template-card:hover .favorite-button,
 .template-card:focus-visible .favorite-button,
+.template-card:focus-within .favorite-button,
 .favorite-button:hover,
 .favorite-button:focus-visible,
 .favorite-button.active {
@@ -509,6 +510,41 @@ h2 {
   color: var(--charcoal);
   background: rgba(244, 241, 234, 0.9);
   opacity: 1;
+}
+
+.template-create-button {
+  position: absolute;
+  right: 9px;
+  bottom: 34px;
+  z-index: 3;
+  min-height: 34px;
+  border: 1px solid rgba(17, 16, 13, 0.22);
+  border-radius: 999px;
+  background: rgba(244, 241, 234, 0.9);
+  color: var(--charcoal);
+  padding: 0 16px;
+  font-size: 13px;
+  font-weight: 680;
+  line-height: 1;
+  opacity: 0;
+  transform: translateY(6px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 12px 24px rgba(17, 16, 13, 0.14);
+  transition: opacity 0.16s ease, transform 0.16s ease, background 0.16s ease;
+}
+
+.template-card:hover .template-create-button,
+.template-card:focus-within .template-create-button,
+.template-create-button:focus-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.template-create-button:hover,
+.template-create-button:focus-visible {
+  background: var(--charcoal);
+  color: var(--paper);
+  outline: none;
 }
 
 .template-empty {

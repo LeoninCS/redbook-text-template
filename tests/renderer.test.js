@@ -121,7 +121,8 @@ test("homepage shows works library as a category tab", () => {
   assert.doesNotMatch(html, /class="drafts-section"/);
   assert.doesNotMatch(html, /id="worksGrid"/);
   assert.doesNotMatch(html, /id="saveWorkBtn"/);
-  assert.match(html, /<button class="secondary-button small-button" id="createWorkBtn" type="button">新建作品<\/button>/);
+  assert.doesNotMatch(html, /id="createWorkBtn"/);
+  assert.doesNotMatch(appSource, /createWorkBtn/);
   assert.match(appSource, /CATEGORY_WORKS/);
   assert.match(appSource, /selectedCategory === CATEGORY_WORKS/);
   assert.match(appSource, /function renderWorksLibrary\(\)/);
@@ -139,6 +140,17 @@ test("template library requires creating a work before editing", () => {
   assert.match(appSource, /function createWorkFromSelectedTemplate\(\)/);
   assert.match(appSource, /createWork\(projectState, selectedTemplateId, defaultDraft\)/);
   assert.match(appSource, /openWorkEditor\(result\.activeWorkId\)/);
+});
+
+test("template cards reveal their own create action on hover", () => {
+  assert.match(appSource, /createButton\.className = "template-create-button";/);
+  assert.match(appSource, /createButton\.textContent = "新建";/);
+  assert.match(appSource, /createButton\.setAttribute\("aria-label", `用 \$\{template\.name\} 新建作品`\);/);
+  assert.match(appSource, /createButton\.addEventListener\("click", \(event\) => \{/);
+  assert.match(appSource, /selectTemplateForCreation\(template\.id\);[\s\S]*createWorkFromSelectedTemplate\(\);/);
+  assert.match(styles, /\.template-create-button\s*{/);
+  assert.match(styles, /\.template-card:hover \.template-create-button/);
+  assert.match(styles, /\.template-card:focus-within \.template-create-button/);
 });
 
 test("editor exposes local auto typesetting", () => {

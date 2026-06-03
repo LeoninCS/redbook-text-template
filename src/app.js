@@ -64,7 +64,6 @@ const bodyInput = document.querySelector("#bodyInput");
 const signatureInput = document.querySelector("#signatureInput");
 const statusText = document.querySelector("#statusText");
 const backBtn = document.querySelector("#backBtn");
-const createWorkBtn = document.querySelector("#createWorkBtn");
 const autoTypesetBtn = document.querySelector("#autoTypesetBtn");
 const deleteWorkBtn = document.querySelector("#deleteWorkBtn");
 const exportPngBtn = document.querySelector("#exportPngBtn");
@@ -234,6 +233,18 @@ function renderLibrary() {
       renderLibrary();
     });
     card.append(favoriteBtn);
+
+    const createButton = document.createElement("button");
+    createButton.type = "button";
+    createButton.className = "template-create-button";
+    createButton.textContent = "新建";
+    createButton.setAttribute("aria-label", `用 ${template.name} 新建作品`);
+    createButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      selectTemplateForCreation(template.id);
+      createWorkFromSelectedTemplate();
+    });
+    card.append(createButton);
 
     card.addEventListener("click", () => selectTemplateForCreation(template.id));
     card.addEventListener("keydown", (event) => {
@@ -674,7 +685,6 @@ function bindEvents() {
   });
 
   backBtn.addEventListener("click", openLibrary);
-  createWorkBtn.addEventListener("click", createWorkFromSelectedTemplate);
   autoTypesetBtn.addEventListener("click", applyAutoTypeset);
   deleteWorkBtn.addEventListener("click", deleteCurrentWork);
   exportPngBtn.addEventListener("click", exportPng);
