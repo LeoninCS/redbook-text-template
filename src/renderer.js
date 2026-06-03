@@ -1849,10 +1849,6 @@ export function drawRenderPage(ctx, paginatedModel, page = paginatedModel.pages[
       ctx.fillText(line, x, titleY);
       titleY += Math.round(template.titleFont * 1.24);
     });
-  } else {
-    ctx.fillStyle = template.muted;
-    ctx.font = "700 26px system-ui, sans-serif";
-    ctx.fillText("CONTINUED", x, TITLE_Y - 56);
   }
 
   drawMarkdownItems(ctx, paginatedModel, page, x);

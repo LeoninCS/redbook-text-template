@@ -118,16 +118,27 @@ test("template thumbnails render from the same canvas path as export output", ()
 
 test("homepage shows works library as a category tab", () => {
   assert.doesNotMatch(html, /<section class="works-section"/);
+  assert.doesNotMatch(html, /class="drafts-section"/);
   assert.doesNotMatch(html, /id="worksGrid"/);
-  assert.match(html, /<button class="secondary-button small-button" id="saveWorkBtn" type="button">保存作品<\/button>/);
+  assert.doesNotMatch(html, /id="saveWorkBtn"/);
+  assert.match(html, /<button class="secondary-button small-button" id="createWorkBtn" type="button">新建作品<\/button>/);
   assert.match(appSource, /CATEGORY_WORKS/);
   assert.match(appSource, /selectedCategory === CATEGORY_WORKS/);
   assert.match(appSource, /function renderWorksLibrary\(\)/);
-  assert.match(appSource, /function saveCurrentWork\(\)/);
+  assert.match(appSource, /function createWorkFromSelectedTemplate\(\)/);
   assert.match(appSource, /function openWork\(workId\)/);
   assert.match(appSource, /function deleteSavedWork\(workId\)/);
   assert.match(styles, /\.works-empty\s*{/);
   assert.match(styles, /\.work-card\s*{/);
+});
+
+test("template library requires creating a work before editing", () => {
+  assert.doesNotMatch(appSource, /card\.addEventListener\("click", \(\) => openEditor\(template\.id\)\);/);
+  assert.doesNotMatch(appSource, /openEditor\(template\.id\);/);
+  assert.match(appSource, /function selectTemplateForCreation\(templateId\)/);
+  assert.match(appSource, /function createWorkFromSelectedTemplate\(\)/);
+  assert.match(appSource, /createWork\(projectState, selectedTemplateId, defaultDraft\)/);
+  assert.match(appSource, /openWorkEditor\(result\.activeWorkId\)/);
 });
 
 test("editor exposes local auto typesetting", () => {
@@ -138,11 +149,17 @@ test("editor exposes local auto typesetting", () => {
   assert.match(appSource, /autoTypesetBtn\.addEventListener\("click", applyAutoTypeset\);/);
 });
 
-test("editor draft actions keep Chinese labels on one line", () => {
-  assert.match(html, /<div class="draft-action-bar" aria-label="草稿操作">/);
+test("editor keeps only essential work actions", () => {
+  assert.match(html, /<div class="draft-action-bar" aria-label="作品操作">/);
+  assert.doesNotMatch(html, /id="newDraftBtn"/);
+  assert.doesNotMatch(html, /id="duplicateDraftBtn"/);
+  assert.doesNotMatch(html, /id="renameDraftBtn"/);
   assert.match(styles, /\.draft-action-bar\s*{[\s\S]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(76px,\s*max-content\)\);/);
   assert.match(styles, /\.draft-action-bar \.small-button\s*{[\s\S]*white-space:\s*nowrap;/);
   assert.match(styles, /\.draft-action-bar \.small-button\s*{[\s\S]*width:\s*max-content;/);
+  assert.doesNotMatch(appSource, /newDraftBtn\.addEventListener/);
+  assert.doesNotMatch(appSource, /duplicateDraftBtn\.addEventListener/);
+  assert.doesNotMatch(appSource, /renameDraftBtn\.addEventListener/);
 });
 
 test("homepage uses a redbook style waterfall feed", () => {
@@ -463,6 +480,21 @@ test("draws render kicker with separated words and clear title spacing", () => {
   assert.equal(text.y, rednote.y);
   assert.ok(text.x - (rednote.x + "REDNOTE".length * 20) >= 18);
   assert.ok(title.y - (rednote.y + kickerFontSize) >= 44);
+});
+
+test("draws continued pages without continued label", () => {
+  const measureCtx = createMeasureContext();
+  const drawCtx = createDrawingContext();
+  const paginated = paginateRenderModel(measureCtx, buildRenderModel("clean-list", {
+    title: "长文分页",
+    body: Array.from({ length: 80 }, (_, index) => `第 ${index + 1} 条内容，用于制造第二页。`).join("\n"),
+    signature: "布洛克琴",
+  }));
+
+  drawRenderModel(drawCtx, paginated, 2);
+
+  assert.ok(paginated.pages.length > 1);
+  assert.equal(drawCtx.textCalls.some((call) => call.text === "CONTINUED"), false);
 });
 
 test("quality fixtures paginate and draw stable pages", () => {

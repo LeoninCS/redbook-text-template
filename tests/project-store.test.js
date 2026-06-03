@@ -10,7 +10,9 @@ import {
   loadWorkAsDraft,
   migrateLegacyState,
   renameDraft,
+  createWork,
   saveWork,
+  updateActiveWork,
   toggleFavoriteTemplate,
   updateActiveDraft,
 } from "../src/project-store.js";
@@ -91,11 +93,40 @@ test("saves deletes and opens works from the work library", () => {
   assert.equal(saved.works.length, 1);
   assert.equal(saved.works[0].id.startsWith("work-"), true);
   assert.equal(saved.works[0].draft.title, "标题");
-  assert.equal(opened.drafts.length, 2);
-  assert.equal(opened.drafts.at(-1).templateId, "clean-list");
-  assert.equal(opened.activeDraftId, opened.drafts.at(-1).id);
+  assert.equal(opened.drafts.length, 1);
+  assert.equal(opened.activeWorkId, saved.works[0].id);
   assert.equal(deleted.works.length, 0);
-  assert.equal(deleted.drafts.length, 2);
+  assert.equal(deleted.drafts.length, 1);
+});
+
+test("creates separate active works from the same template", () => {
+  const state = createInitialProjectState("clean-list", sampleDraft, "2026-06-02T00:00:00.000Z");
+  const first = createWork(state, "clean-list", sampleDraft, "2026-06-02T03:00:00.000Z");
+  const second = createWork(first, "clean-list", {
+    ...sampleDraft,
+    title: "第二份",
+  }, "2026-06-02T04:00:00.000Z");
+
+  assert.equal(second.works.length, 2);
+  assert.equal(second.works[0].templateId, "clean-list");
+  assert.equal(second.works[1].templateId, "clean-list");
+  assert.notEqual(second.works[0].id, second.works[1].id);
+  assert.equal(second.activeWorkId, second.works[0].id);
+});
+
+test("updates the active work directly while editing", () => {
+  const state = createInitialProjectState("clean-list", sampleDraft, "2026-06-02T00:00:00.000Z");
+  const created = createWork(state, "clean-list", sampleDraft, "2026-06-02T03:00:00.000Z");
+  const updated = updateActiveWork(created, {
+    draft: {
+      ...sampleDraft,
+      title: "编辑后的作品",
+    },
+  }, "2026-06-02T04:00:00.000Z");
+
+  assert.equal(updated.works[0].draft.title, "编辑后的作品");
+  assert.equal(updated.works[0].name, "编辑后的作品");
+  assert.equal(updated.works[0].updatedAt, "2026-06-02T04:00:00.000Z");
 });
 
 test("migrates legacy single draft state", () => {
