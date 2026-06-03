@@ -130,6 +130,14 @@ test("homepage shows works library as a category tab", () => {
   assert.match(styles, /\.work-card\s*{/);
 });
 
+test("editor exposes local auto typesetting", () => {
+  assert.match(html, /<button class="secondary-button small-button" id="autoTypesetBtn" type="button">自动排版<\/button>/);
+  assert.match(appSource, /import \{ autoTypeset \} from "\.\/auto-typeset\.js";/);
+  assert.match(appSource, /function applyAutoTypeset\(\)/);
+  assert.match(appSource, /autoTypeset\(draft, templates\)/);
+  assert.match(appSource, /autoTypesetBtn\.addEventListener\("click", applyAutoTypeset\);/);
+});
+
 test("editor draft actions keep Chinese labels on one line", () => {
   assert.match(html, /<div class="draft-action-bar" aria-label="草稿操作">/);
   assert.match(styles, /\.draft-action-bar\s*{[\s\S]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(76px,\s*max-content\)\);/);

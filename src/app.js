@@ -13,6 +13,7 @@ import {
   createZipBlob,
 } from "./exporter.js";
 import { buildAiSuggestions } from "./assistant.js";
+import { autoTypeset } from "./auto-typeset.js";
 import {
   createNewDraft,
   deleteDraft,
@@ -71,6 +72,7 @@ const newDraftFromLibraryBtn = document.querySelector("#newDraftFromLibraryBtn")
 const newDraftBtn = document.querySelector("#newDraftBtn");
 const duplicateDraftBtn = document.querySelector("#duplicateDraftBtn");
 const renameDraftBtn = document.querySelector("#renameDraftBtn");
+const autoTypesetBtn = document.querySelector("#autoTypesetBtn");
 const saveWorkBtn = document.querySelector("#saveWorkBtn");
 const deleteDraftBtn = document.querySelector("#deleteDraftBtn");
 const exportPngBtn = document.querySelector("#exportPngBtn");
@@ -495,6 +497,17 @@ function saveCurrentWork() {
   statusText.textContent = "作品已保存。";
 }
 
+function applyAutoTypeset() {
+  updateDraftFromInputs();
+  const result = autoTypeset(draft, templates);
+  selectedTemplateId = result.templateId;
+  draft = normalizeDraft(result.draft);
+  setInputs();
+  persistActiveDraft();
+  renderPreview();
+  statusText.textContent = `已自动排版：${result.reason} · ${result.template.name}`;
+}
+
 function deleteSavedWork(workId) {
   const work = (projectState.works || []).find((item) => item.id === workId);
   const confirmed = window.confirm(`删除作品「${work?.name || "未命名作品"}」？`);
@@ -675,7 +688,7 @@ function renderAiSuggestions() {
   });
 
   aiOutput.append(titleRow, cover, sectionList, templateList);
-  statusText.textContent = "AI 建议已生成。";
+  statusText.textContent = "本地建议已生成。";
 }
 
 function bindEvents() {
@@ -718,6 +731,7 @@ function bindEvents() {
   newDraftBtn.addEventListener("click", () => createDraft());
   duplicateDraftBtn.addEventListener("click", duplicateCurrentDraft);
   renameDraftBtn.addEventListener("click", renameCurrentDraft);
+  autoTypesetBtn.addEventListener("click", applyAutoTypeset);
   saveWorkBtn.addEventListener("click", saveCurrentWork);
   deleteDraftBtn.addEventListener("click", deleteCurrentDraft);
   exportPngBtn.addEventListener("click", exportPng);
